@@ -30,10 +30,7 @@ async function run() {
         const userCollection = client.db('Aloron').collection('users')
         const courseCollection = client.db('Aloron').collection('courses')
         const enrollmentCollection = client.db('Aloron').collection('enrollments')
-        const productCollection = client.db('Aloron').collection('products')
-        const cartCollection = client.db('Aloron').collection('cart')
-        const orderCollection = client.db('Aloron').collection('orders')
-        const questionCollection = client.db('Aloron').collection('questions')
+        const reviewsCollection = client.db('hashi').collection('reviews')
 
         // jwt related api
         app.post('/jwt', async (req, res) => {
@@ -208,108 +205,6 @@ async function run() {
         })
 
 
-        // Shop related api
-        app.post('/products', async (req, res) => {
-            const booked = req.body
-            const result = await productCollection.insertOne(booked)
-            res.send(result)
-        })
-
-        app.get('/products', async (req, res) => {
-            const result = await productCollection.find().toArray()
-            res.send(result)
-        })
-
-        app.get('/product', async (req, res) => {
-            const email = req.query.email
-            const query = { email: email }
-            const result = await productCollection.find(query).toArray()
-            res.send(result)
-        })
-
-        app.patch('/products/:id', async (req, res) => {
-            const id = req.params.id
-            const result = await productCollection.updateOne(
-                { _id: new ObjectId(id), status: 'pending' },
-                { $set: { status: 'in-review' } }
-            )
-            res.send(result)
-        })
-
-        app.delete('/products/:id', async (req, res) => {
-            const id = req.params.id
-            const query = { _id: new ObjectId(id) }
-            const result = await productCollection.deleteOne(query)
-            res.send(result)
-        })
-
-            // Cart related api
-    app.post('/cart', async (req, res) => {
-      const cart = req.body
-      const result = await cartCollection.insertOne(cart)
-      res.send(result)
-    })
-
-    app.get('/cart', async (req, res) => {
-      const email = req.query.email;
-      const query = { email: email };
-      const result = await cartCollection.find(query).toArray();
-      res.send(result);
-    });
-
-    app.delete('/cart/:id', async (req, res) => {
-      const id = req.params.id
-      const query = { _id: new ObjectId(id) }
-      const result = await cartCollection.deleteOne(query)
-      res.send(result)
-    })
-
-    // orders related api
-    app.post('/orders', async (req, res) => {
-      const booked = req.body
-      const result = await orderCollection.insertOne(booked)
-      res.send(result)
-    })
-
-    app.get('/order',  async (req, res) => {
-      const email = req.query.email;
-      const query = { email: email };
-      const result = await orderCollection.find(query).toArray();
-      console.log(query)
-      res.send(result);
-    });
-
-
-    app.get('/orders',  async (req, res) => {
-      const result = await orderCollection.find().toArray()
-      res.send(result)
-    })
-
-    app.patch('/orders/:id', async (req, res) => {
-      const { id } = req.params;
-      const { status } = req.body;
-      const result = await orderCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: { status } }
-      );   
-      res.send(result);
-    });
-
-        
-        // enrollments related api
-        app.post('/questions', async (req, res) => {
-            const booked = req.body
-            const result = await questionCollection.insertOne(booked)
-            res.send(result)
-        })
-
-        app.get('/questions', async (req, res) => {
-            const result = await questionCollection.find().toArray()
-            res.send(result)
-        })
-
-
-        
         // enrollments related api
         app.post('/enrollments', async (req, res) => {
             const booked = req.body
@@ -325,6 +220,7 @@ async function run() {
         // student-enrolled-course
         app.get('/enrolled', async (req, res) => {
             const email = req.query.email
+            console.lo
             const query = { email: email }
             const result = await enrollmentCollection.find(query).toArray()
             res.send(result)
