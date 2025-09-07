@@ -296,37 +296,18 @@ async function run() {
       res.send(result);
     });
 
-        //  QUESTIONBANK RELATED APIS
-
+        
         // Exam related api
-        app.post('/practice-questions', async (req, res) => {
+        app.post('/questions', async (req, res) => {
             const booked = req.body
-            const result = await practiceCollection.insertOne(booked)
+            const result = await questionCollection.insertOne(booked)
             res.send(result)
         })
 
-
-app.get('/practice-questions', async (req, res) => {
-  try {
-    const { subject, paper, chapter } = req.query;
-
-    // Build dynamic filter object
-    const filter = {};
-    if (subject) filter.subject = subject;
-    if (paper) filter.paper = paper;
-    if (chapter) filter.chapter = chapter;
-
-    const result = await practiceCollection.find(filter).toArray();
-    res.status(200).json(result);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server Error' });
-  }
-});
-
-
-
-
+        app.get('/questions', async (req, res) => {
+            const result = await questionCollection.find().toArray()
+            res.send(result)
+        })
         // Exam related api
         app.post('/questions', async (req, res) => {
             const booked = req.body
