@@ -35,7 +35,7 @@ async function run() {
         const orderCollection = client.db('Aloron').collection('orders')
         const questionCollection = client.db('Aloron').collection('questions')
         const practiceCollection = client.db('Aloron').collection('practice')
-        const communityCollection = client.db('Aloron').collection('community')
+        const practiceCollection = client.db('Aloron').collection('practice')
 
         // jwt related api
         app.post('/jwt', async (req, res) => {

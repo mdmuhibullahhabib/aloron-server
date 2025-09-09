@@ -35,7 +35,6 @@ async function run() {
         const orderCollection = client.db('Aloron').collection('orders')
         const questionCollection = client.db('Aloron').collection('questions')
         const practiceCollection = client.db('Aloron').collection('practice')
-        const communityCollection = client.db('Aloron').collection('community')
 
         // jwt related api
         app.post('/jwt', async (req, res) => {
@@ -301,12 +300,9 @@ async function run() {
 
 
 
-        //  Community related api
+        //  COMMUNITY RELATED APIS
+        
 
-    app.get('/community',  async (req, res) => {
-      const result = await communityCollection.find().toArray()
-      res.send(result)
-    })
 
 
         //  QUESTIONBANK RELATED APIS
