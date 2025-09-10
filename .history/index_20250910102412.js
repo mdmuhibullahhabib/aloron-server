@@ -123,7 +123,7 @@ async function run() {
         app.patch('/users/role/:id', async (req, res) => {
             const id = req.params.id
             const { role } = req.body
-            const allowedRoles = ['student', 'teacher', 'admin']
+            const allowedRoles = ['tourist', 'guide', 'admin']
             if (!allowedRoles.includes(role)) {
                 return res.status(400).send({ message: 'Invalid role specified.' })
             }

@@ -1,7 +1,7 @@
 const express = require('express')
 require('dotenv').config()
 const app = express()
-const jwt = require('jsonwebtoken')
+// const jwt = require('jsonwebtoken')
 const cors = require('cors')
 const port = process.env.PORT || 5000
 const { ObjectId } = require('mongodb')
@@ -123,7 +123,7 @@ async function run() {
         app.patch('/users/role/:id', async (req, res) => {
             const id = req.params.id
             const { role } = req.body
-            const allowedRoles = ['student', 'teacher', 'admin']
+            const allowedRoles = ['tourist', 'guide', 'admin']
             if (!allowedRoles.includes(role)) {
                 return res.status(400).send({ message: 'Invalid role specified.' })
             }
