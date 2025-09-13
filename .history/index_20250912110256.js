@@ -5,13 +5,10 @@ const jwt = require('jsonwebtoken')
 const cors = require('cors')
 const port = process.env.PORT || 5000
 const { ObjectId } = require('mongodb')
-const axios = require("axios");
-
 
 // middleware
 app.use(cors())
 app.use(express.json())
-app.use(express.urlencoded());
 
 const { MongoClient, ServerApiVersion } = require('mongodb')
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.w5eri.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
@@ -24,18 +21,6 @@ const client = new MongoClient(uri, {
         deprecationErrors: true
     }
 })
-
-// Store ID: aloro68c50c0ceb261
-// Store Password (API/Secret Key): aloro68c50c0ceb261@ssl
-
-// Merchant Panel URL: https://sandbox.sslcommerz.com/manage/ (Credential as you inputted in the time of registration)
-
-// Store name: testaloro872v
-// Registered URL: www.aloron.com
-// Session API to generate transaction: https://sandbox.sslcommerz.com/gwprocess/v3/api.php
-// Validation API: https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?wsdl
-// Validation API (Web Service) name: https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php
-
 
 async function run() {
     try {
@@ -52,7 +37,6 @@ async function run() {
         const practiceCollection = client.db('Aloron').collection('practice')
         const communityCollection = client.db('Aloron').collection('community')
         const subscriptionCollection = client.db('Aloron').collection('subscription')
-        const paymentCollection = client.db('Aloron').collection('payment')
 
         // jwt related api
         app.post('/jwt', async (req, res) => {
@@ -78,119 +62,6 @@ async function run() {
                 next()
             })
         }
-
-        // payment related apis
-        app.post('/create-ssl-payment', async (req, res) => {
-            const payment = req.body;
-            console.log("payment", payment)
-
-            const trxid = new ObjectId().toString();
-
-            payment.transactionId = trxid;
-
-            //step 1: initialize the data
-            const initiate = {
-                store_id: "aloro68c50c0ceb261",
-                store_passwd: "aloro68c50c0ceb261@ssl",
-                total_amount: payment.price,
-                currency: "BDT",
-                tran_id: trxid,
-                success_url: "http://localhost:5001/success-payment",
-                fail_url: "http://localhost:5173/fail",
-                cancel_url: "http://localhost:5173/cancle",
-                ipn_url: "http://localhost:5001/ipn-success-payment",
-                cus_name: "Customer Name",
-                cus_email: `${payment.email}`,
-                cus_add1: "Dhaka&",
-                cus_add2: "Dhaka&",
-                cus_city: "Dhaka&",
-                cus_state: "Dhaka&",
-                cus_postcode: 1000,
-                cus_country: "Bangladesh",
-                cus_phone: "01711111111",
-                cus_fax: "01711111111",
-                shipping_method: "NO",
-                product_name: "Laptop",
-                product_category: "Laptop",
-                product_profile: "general",
-                multi_card_name: "mastercard,visacard,amexcard",
-                value_a: "ref001_A&",
-                value_b: "ref002_B&",
-                value_c: "ref003_C&",
-                value_d: "ref004_D",
-            };
-
-            //step 2: send the request to sslcommerz payment gateway
-            const iniResponse = await axios({
-                url: "https://sandbox.sslcommerz.com/gwprocess/v4/api.php",
-                method: "POST",
-                data: initiate,
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-            });
-
-            const saveData = await paymentCollection.insertOne(payment);
-
-            //step-3 : get the url for payment
-            const gatewayUrl = iniResponse?.data?.GatewayPageURL;
-
-            console.log(gatewayUrl, "gatewayUrl");
-
-            //step-4: redirect the customer to the gateway
-            res.send({ gatewayUrl });
-
-        });
-
-        app.post("/success-payment", async (req, res) => {
-            //step-5 : success payment data
-            const paymentSuccess = req.body;
-
-            //step-6: Validation
-            const { data } = await axios.get(
-                `https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${paymentSuccess.val_id}&store_id=bistr67745f5723a7c&store_passwd=bistr67745f5723a7c@ssl&format=json`
-            );
-            if (data.status !== "VALID") {
-                return res.send({ message: "Invalid payment" });
-            }
-
-            //step-7: update the payment to your database
-            const updatePayment = await paymentCollection.updateOne(
-                { transactionId: data.tran_id },
-                {
-                    $set: {
-                        status: "success",
-                    },
-                }
-            );
-
-            //step-8: find the payment for more functionality
-            const payment = await paymentCollection.findOne({
-                transactionId: data.tran_id,
-            });
-
-            // console.log("payment", payment);
-
-            //  carefully delete each item from the cart
-            // console.log("payment info", payment);
-            const query = {
-                _id: {
-                    $in: payment.cartIds.map((id) => new ObjectId(id)),
-                },
-            };
-
-            //step:8:delete the cart data
-            const deleteResult = await cartCollection.deleteMany(query);
-
-            // console.log("deleteResult", deleteResult);
-
-            //step-9: redirect the customer to success page
-            res.redirect("http://localhost:5173/success");
-            console.log(updatePayment, "updatePayment");
-            console.log("isValidPayment", data);
-        });
-
-
 
         // doctor related api
         app.post('/doctors', async (req, res) => {
@@ -237,8 +108,6 @@ async function run() {
         })
 
         app.get('/users/role/:email', async (req, res) => {
-            // const role = student;
-            // res.send(role)
             const email = req.params.email
             if (email !== req.decoded.email) {
                 return res.status(403).send({ message: 'Unauthorized access' })
@@ -313,6 +182,8 @@ async function run() {
             res.send(result)
         })
 
+
+        // ✅ Update course status
         app.patch('/courses/:id', async (req, res) => {
             const { id } = req.params;
             const { status } = req.body;
@@ -352,56 +223,6 @@ async function run() {
         })
 
         // subscription related apis
-        // ✅ Create a subscription
-        app.post("/subscriptions", async (req, res) => {
-            const subscription = req.body;
-            const result = await subscriptionCollection.insertOne(subscription);
-            res.send(result);
-        });
-
-        // ✅ Update subscription status by ID
-        app.patch("/subscriptions/:id", async (req, res) => {
-            const { id } = req.params;
-            const { status } = req.body;
-            const result = await subscriptionCollection.updateOne(
-                { _id: new ObjectId(id) },
-                { $set: { status } }
-            );
-            res.send(result);
-        });
-
-        // ✅ Get all subscriptions
-        app.get("/subscriptions", async (req, res) => {
-            const result = await subscriptionCollection.find().toArray();
-            res.send(result);
-        });
-
-        // ✅ Get subscriptions by userId
-        app.get("/subscriptions/user", async (req, res) => {
-            const id = req.query.id;
-            const query = { userId: id };
-            const result = await subscriptionCollection.find(query).toArray();
-            res.send(result);
-        });
-
-        // ✅ Update subscription to "renewed" if pending (example)
-        app.patch("/subscriptions/renew/:id", async (req, res) => {
-            const id = req.params.id;
-            const result = await subscriptionCollection.updateOne(
-                { _id: new ObjectId(id), status: "active" },
-                { $set: { status: "renewed" } }
-            );
-            res.send(result);
-        });
-
-        // ✅ Delete subscription by ID
-        app.delete("/subscriptions/:id", async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) };
-            const result = await subscriptionCollection.deleteOne(query);
-            res.send(result);
-        });
-
 
         // Shop related api
         app.post('/products', async (req, res) => {

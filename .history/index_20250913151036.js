@@ -11,7 +11,6 @@ const axios = require("axios");
 // middleware
 app.use(cors())
 app.use(express.json())
-app.use(express.urlencoded());
 
 const { MongoClient, ServerApiVersion } = require('mongodb')
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.w5eri.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`

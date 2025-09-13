@@ -5,13 +5,10 @@ const jwt = require('jsonwebtoken')
 const cors = require('cors')
 const port = process.env.PORT || 5000
 const { ObjectId } = require('mongodb')
-const axios = require("axios");
-
 
 // middleware
 app.use(cors())
 app.use(express.json())
-app.use(express.urlencoded());
 
 const { MongoClient, ServerApiVersion } = require('mongodb')
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.w5eri.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
@@ -24,18 +21,6 @@ const client = new MongoClient(uri, {
         deprecationErrors: true
     }
 })
-
-// Store ID: aloro68c50c0ceb261
-// Store Password (API/Secret Key): aloro68c50c0ceb261@ssl
-
-// Merchant Panel URL: https://sandbox.sslcommerz.com/manage/ (Credential as you inputted in the time of registration)
-
-// Store name: testaloro872v
-// Registered URL: www.aloron.com
-// Session API to generate transaction: https://sandbox.sslcommerz.com/gwprocess/v3/api.php
-// Validation API: https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?wsdl
-// Validation API (Web Service) name: https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php
-
 
 async function run() {
     try {
@@ -51,8 +36,6 @@ async function run() {
         const questionCollection = client.db('Aloron').collection('questions')
         const practiceCollection = client.db('Aloron').collection('practice')
         const communityCollection = client.db('Aloron').collection('community')
-        const subscriptionCollection = client.db('Aloron').collection('subscription')
-        const paymentCollection = client.db('Aloron').collection('payment')
 
         // jwt related api
         app.post('/jwt', async (req, res) => {
@@ -78,119 +61,6 @@ async function run() {
                 next()
             })
         }
-
-        // payment related apis
-        app.post('/create-ssl-payment', async (req, res) => {
-            const payment = req.body;
-            console.log("payment", payment)
-
-            const trxid = new ObjectId().toString();
-
-            payment.transactionId = trxid;
-
-            //step 1: initialize the data
-            const initiate = {
-                store_id: "aloro68c50c0ceb261",
-                store_passwd: "aloro68c50c0ceb261@ssl",
-                total_amount: payment.price,
-                currency: "BDT",
-                tran_id: trxid,
-                success_url: "http://localhost:5001/success-payment",
-                fail_url: "http://localhost:5173/fail",
-                cancel_url: "http://localhost:5173/cancle",
-                ipn_url: "http://localhost:5001/ipn-success-payment",
-                cus_name: "Customer Name",
-                cus_email: `${payment.email}`,
-                cus_add1: "Dhaka&",
-                cus_add2: "Dhaka&",
-                cus_city: "Dhaka&",
-                cus_state: "Dhaka&",
-                cus_postcode: 1000,
-                cus_country: "Bangladesh",
-                cus_phone: "01711111111",
-                cus_fax: "01711111111",
-                shipping_method: "NO",
-                product_name: "Laptop",
-                product_category: "Laptop",
-                product_profile: "general",
-                multi_card_name: "mastercard,visacard,amexcard",
-                value_a: "ref001_A&",
-                value_b: "ref002_B&",
-                value_c: "ref003_C&",
-                value_d: "ref004_D",
-            };
-
-            //step 2: send the request to sslcommerz payment gateway
-            const iniResponse = await axios({
-                url: "https://sandbox.sslcommerz.com/gwprocess/v4/api.php",
-                method: "POST",
-                data: initiate,
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-            });
-
-            const saveData = await paymentCollection.insertOne(payment);
-
-            //step-3 : get the url for payment
-            const gatewayUrl = iniResponse?.data?.GatewayPageURL;
-
-            console.log(gatewayUrl, "gatewayUrl");
-
-            //step-4: redirect the customer to the gateway
-            res.send({ gatewayUrl });
-
-        });
-
-        app.post("/success-payment", async (req, res) => {
-            //step-5 : success payment data
-            const paymentSuccess = req.body;
-
-            //step-6: Validation
-            const { data } = await axios.get(
-                `https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${paymentSuccess.val_id}&store_id=bistr67745f5723a7c&store_passwd=bistr67745f5723a7c@ssl&format=json`
-            );
-            if (data.status !== "VALID") {
-                return res.send({ message: "Invalid payment" });
-            }
-
-            //step-7: update the payment to your database
-            const updatePayment = await paymentCollection.updateOne(
-                { transactionId: data.tran_id },
-                {
-                    $set: {
-                        status: "success",
-                    },
-                }
-            );
-
-            //step-8: find the payment for more functionality
-            const payment = await paymentCollection.findOne({
-                transactionId: data.tran_id,
-            });
-
-            // console.log("payment", payment);
-
-            //  carefully delete each item from the cart
-            // console.log("payment info", payment);
-            const query = {
-                _id: {
-                    $in: payment.cartIds.map((id) => new ObjectId(id)),
-                },
-            };
-
-            //step:8:delete the cart data
-            const deleteResult = await cartCollection.deleteMany(query);
-
-            // console.log("deleteResult", deleteResult);
-
-            //step-9: redirect the customer to success page
-            res.redirect("http://localhost:5173/success");
-            console.log(updatePayment, "updatePayment");
-            console.log("isValidPayment", data);
-        });
-
-
 
         // doctor related api
         app.post('/doctors', async (req, res) => {
@@ -237,8 +107,6 @@ async function run() {
         })
 
         app.get('/users/role/:email', async (req, res) => {
-            // const role = student;
-            // res.send(role)
             const email = req.params.email
             if (email !== req.decoded.email) {
                 return res.status(403).send({ message: 'Unauthorized access' })
@@ -312,16 +180,246 @@ async function run() {
             const result = await courseCollection.insertOne(booked)
             res.send(result)
         })
+// ✅ Update course status
+router.patch("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
 
-        app.patch('/courses/:id', async (req, res) => {
-            const { id } = req.params;
-            const { status } = req.body;
-            const result = await courseCollection.updateOne(
-                { _id: new ObjectId(id) },
-                { $set: { status } }
-            );
-            res.send(result);
-        });
+    const course = await Course.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!course) return res.status(404).json({ message: "Course not found" });
+
+    res.status(200).json(course);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ✅ Delete course
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Course.findByIdAndDelete(id);
+    res.status(200).json({ message: "Course deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ✅ Create new course (Duplicate)
+router.post("/", async (req, res) => {
+  try {
+    const courseData = req.body;
+    const newCourse = await Course.create(courseData);
+    res.status(201).json(newCourse);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+export default router;
+২️⃣ Frontend: ManageCourses.jsx
+jsx
+Copy code
+import React, { useState } from "react";
+import {
+  FaBookOpen,
+  FaUsers,
+  FaEdit,
+  FaTrash,
+  FaEye,
+  FaToggleOn,
+  FaToggleOff,
+  FaListUl,
+  FaMoneyBillWave,
+  FaStar,
+  FaCopy,
+  FaInfoCircle,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaSearch,
+  FaFilter,
+} from "react-icons/fa";
+import toast, { Toaster } from "react-hot-toast";
+import useAxiosSecure from "../../../../hooks/useAxiosSecure";
+import useCourses from "../../../../hooks/useCourses";
+import CourseCurriculumModal from "./CourseCurriculumModal";
+import CourseDetailsModal from "./CourseDetailsModal";
+import CourseEditModal from "./CourseEditModal";
+import CourseStudentsModal from "./CourseStudentsModal";
+
+const ManageCourses = () => {
+  const axiosSecure = useAxiosSecure(); // ✅ Backend call with JWT
+  const [courses, refetch] = useCourses(); // কোর্স ডেটা লোড
+
+  // ---------------- State ----------------
+  const [selectedCurriculum, setSelectedCurriculum] = useState(null);
+  const [selectedDetails, setSelectedDetails] = useState(null);
+  const [selectedEdit, setSelectedEdit] = useState(null);
+  const [selectedStudents, setSelectedStudents] = useState(null);
+  const [filter, setFilter] = useState("");
+  const [search, setSearch] = useState("");
+
+  // ---------------- Backend Operations ----------------
+
+  // ✅ Approve → Published
+  const handleApprove = async (id) => {
+    try {
+      await axiosSecure.patch(`/courses/${id}`, { status: "Published" });
+      toast.success("✅ কোর্স Published হয়েছে");
+      refetch();
+    } catch (err) {
+      console.error(err);
+      toast.error("Publish ব্যর্থ হয়েছে!");
+    }
+  };
+
+  // ✅ Reject → Rejected
+  const handleReject = async (id) => {
+    try {
+      await axiosSecure.patch(`/courses/${id}`, { status: "Rejected" });
+      toast.error("❌ কোর্স Rejected হয়েছে");
+      refetch();
+    } catch (err) {
+      console.error(err);
+      toast.error("Reject ব্যর্থ হয়েছে!");
+    }
+  };
+
+  // ✅ Publish / Unpublish toggle
+  const handleTogglePublish = async (id, currentStatus) => {
+    try {
+      const newStatus = currentStatus === "Published" ? "Draft" : "Published";
+      await axiosSecure.patch(`/courses/${id}`, { status: newStatus });
+      toast.success(
+        newStatus === "Published"
+          ? "✅ কোর্স Published হয়েছে"
+          : "⏸️ কোর্স Unpublished হয়েছে"
+      );
+      refetch();
+    } catch (err) {
+      console.error(err);
+      toast.error("Status update ব্যর্থ হয়েছে!");
+    }
+  };
+
+  // ✅ Delete
+  const handleDelete = async (id) => {
+    if (confirm("আপনি কি নিশ্চিত এই কোর্স ডিলিট করতে চান?")) {
+      try {
+        await axiosSecure.delete(`/courses/${id}`);
+        toast.error("🗑️ কোর্স ডিলিট হয়েছে");
+        refetch();
+      } catch (err) {
+        console.error(err);
+        toast.error("Delete ব্যর্থ হয়েছে!");
+      }
+    }
+  };
+
+  // ✅ Duplicate
+  const handleDuplicate = async (course) => {
+    try {
+      const newCourse = { ...course, _id: undefined, title: course.title + " (Copy)", status: "Draft" };
+      await axiosSecure.post("/courses", newCourse);
+      toast.success("📑 কোর্স ডুপ্লিকেট হয়েছে");
+      refetch();
+    } catch (err) {
+      console.error(err);
+      toast.error("Duplicate ব্যর্থ হয়েছে!");
+    }
+  };
+
+  // ✅ Students (modal)
+  const handleViewStudents = (course) => setSelectedStudents(course);
+
+  // ---------------- Filter + Search ----------------
+  const filteredCourses = courses.filter(
+    (c) =>
+      (filter ? c.status === filter : true) &&
+      (search
+        ? c.title.toLowerCase().includes(search.toLowerCase()) ||
+          c.subject.toLowerCase().includes(search.toLowerCase()) ||
+          c.teacher.toLowerCase().includes(search.toLowerCase())
+        : true)
+  );
+
+  return (
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <Toaster position="top-center" reverseOrder={false} />
+      <h2 className="text-2xl font-bold mb-6 text-green-600 text-center">
+        📚 Manage Courses (Admin)
+      </h2>
+
+      {/* Filter & Search */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-3 mb-6">
+        <div className="flex items-center gap-2">
+          <FaFilter />
+          <select className="select select-bordered select-sm" value={filter} onChange={(e) => setFilter(e.target.value)}>
+            <option value="">সবগুলো</option>
+            <option value="Published">Published</option>
+            <option value="Draft">Draft</option>
+            <option value="Pending">Pending</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <FaSearch />
+          <input type="text" placeholder="Search by title, subject, teacher" value={search} onChange={(e) => setSearch(e.target.value)} className="input input-bordered input-sm"/>
+        </div>
+      </div>
+
+      {/* Courses Grid */}
+      {filteredCourses.length === 0 ? (
+        <p className="text-center text-gray-500">কোনো কোর্স পাওয়া যায়নি।</p>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredCourses.map((course) => (
+            <div key={course._id} className="bg-white shadow-md rounded-xl p-6 border border-gray-200 flex flex-col">
+              <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+                <FaBookOpen className="text-green-600" /> {course.title}
+              </h3>
+              <p className="text-sm text-gray-600">বিষয়: <span className="font-semibold">{course.subject}</span></p>
+              <p className="text-sm text-gray-600">শিক্ষক: {course.teacher}</p>
+              <p className="text-sm text-gray-600">লেভেল: {course.level}</p>
+              <p className="text-sm text-gray-500 line-clamp-2 my-2">{course.description}</p>
+              <p className="text-sm text-gray-600">⏳ মেয়াদ: {course.duration}</p>
+              <p className="text-sm text-gray-600">💰 ফি: {course.price} টাকা</p>
+              <p className="text-sm text-yellow-600 flex items-center gap-1 mb-2"><FaStar /> {course.rating} ⭐</p>
+              <p className="text-sm text-green-700 flex items-center gap-1 mb-3"><FaMoneyBillWave /> মোট আয়: {course.revenue} টাকা</p>
+
+              {/* Status */}
+              <span className={`inline-block px-3 py-1 text-xs rounded-full font-medium mb-3 ${course.status === "Published" ? "bg-green-100 text-green-700" : course.status === "Draft" ? "bg-yellow-100 text-yellow-700" : course.status === "Pending" ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"}`}>
+                {course.status}
+              </span>
+
+              {/* Students Count */}
+              <p className="text-sm text-gray-600 mb-3 flex items-center gap-2"><FaUsers className="text-blue-600" /> শিক্ষার্থী: {course.students}</p>
+
+              {/* Buttons */}
+              <div className="flex flex-wrap gap-2 mt-auto">
+                {course.status === "Pending" && (
+                  <>
+                    <button onClick={() => handleApprove(course._id)} className="btn btn-xs bg-green-600 text-white"><FaCheckCircle /> Approve</button>
+                    <button onClick={() => handleReject(course._id)} className="btn btn-xs bg-red-600 text-white"><FaTimesCircle /> Reject</button>
+                  </>
+                )}
+                <button onClick={() => handleTogglePublish(course._id, course.status)} className={`btn btn-xs text-white ${course.status === "Published" ? "bg-yellow-600" : "bg-green-600"}`}>
+                  {course.status === "Published" ? <FaToggleOff /> : <FaToggleOn />} {course.status === "Published" ? "Unpublish" : "Publish"}
+                </button>
+                <button onClick={() => setSelectedEdit(course)} className="btn btn-xs bg-blue-600 text-white"><FaEdit /> Edit</button>
+                <button onClick={() => handleViewStudents(course)} className="btn btn-xs bg-indigo-600 text-white"><FaEye /> Students</button>
+                <button onClick={() => handleDuplicate(course)} className="btn btn-xs bg-teal-600 text-white"><FaCopy /> Duplicate</button>
+                <button onClick={() => handleDelete(course._id)} className="btn btn-xs bg-red-600 text-white"><FaTrash /> Delete</button>
+                <button onClick={() => setSelectedCurriculum(course)} className="
 
         app.get('/courses', async (req, res) => {
             const result = await courseCollection.find().toArray()
@@ -350,57 +448,6 @@ async function run() {
             const result = await courseCollection.deleteOne(query)
             res.send(result)
         })
-
-        // subscription related apis
-        // ✅ Create a subscription
-        app.post("/subscriptions", async (req, res) => {
-            const subscription = req.body;
-            const result = await subscriptionCollection.insertOne(subscription);
-            res.send(result);
-        });
-
-        // ✅ Update subscription status by ID
-        app.patch("/subscriptions/:id", async (req, res) => {
-            const { id } = req.params;
-            const { status } = req.body;
-            const result = await subscriptionCollection.updateOne(
-                { _id: new ObjectId(id) },
-                { $set: { status } }
-            );
-            res.send(result);
-        });
-
-        // ✅ Get all subscriptions
-        app.get("/subscriptions", async (req, res) => {
-            const result = await subscriptionCollection.find().toArray();
-            res.send(result);
-        });
-
-        // ✅ Get subscriptions by userId
-        app.get("/subscriptions/user", async (req, res) => {
-            const id = req.query.id;
-            const query = { userId: id };
-            const result = await subscriptionCollection.find(query).toArray();
-            res.send(result);
-        });
-
-        // ✅ Update subscription to "renewed" if pending (example)
-        app.patch("/subscriptions/renew/:id", async (req, res) => {
-            const id = req.params.id;
-            const result = await subscriptionCollection.updateOne(
-                { _id: new ObjectId(id), status: "active" },
-                { $set: { status: "renewed" } }
-            );
-            res.send(result);
-        });
-
-        // ✅ Delete subscription by ID
-        app.delete("/subscriptions/:id", async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) };
-            const result = await subscriptionCollection.deleteOne(query);
-            res.send(result);
-        });
 
 
         // Shop related api
@@ -438,65 +485,68 @@ async function run() {
             res.send(result)
         })
 
-        // Cart 
-        app.post('/cart', async (req, res) => {
-            const cart = req.body
-            const result = await cartCollection.insertOne(cart)
-            res.send(result)
-        })
+            // Cart 
+    app.post('/cart', async (req, res) => {
+      const cart = req.body
+      const result = await cartCollection.insertOne(cart)
+      res.send(result)
+    })
 
-        app.get('/cart', async (req, res) => {
-            const email = req.query.email;
-            const query = { email: email };
-            const result = await cartCollection.find(query).toArray();
-            res.send(result);
-        });
+    app.get('/cart', async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await cartCollection.find(query).toArray();
+      res.send(result);
+    });
 
-        app.delete('/cart/:id', async (req, res) => {
-            const id = req.params.id
-            const query = { _id: new ObjectId(id) }
-            const result = await cartCollection.deleteOne(query)
-            res.send(result)
-        })
+    app.delete('/cart/:id', async (req, res) => {
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
+      const result = await cartCollection.deleteOne(query)
+      res.send(result)
+    })
 
-        // orders
-        app.post('/orders', async (req, res) => {
-            const booked = req.body
-            const result = await orderCollection.insertOne(booked)
-            res.send(result)
-        })
+    // orders
+    app.post('/orders', async (req, res) => {
+      const booked = req.body
+      const result = await orderCollection.insertOne(booked)
+      res.send(result)
+    })
 
-        app.get('/order', async (req, res) => {
-            const email = req.query.email;
-            const query = { email: email };
-            const result = await orderCollection.find(query).toArray();
-            console.log(query)
-            res.send(result);
-        });
+    app.get('/order',  async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await orderCollection.find(query).toArray();
+      console.log(query)
+      res.send(result);
+    });
 
-        app.get('/orders', async (req, res) => {
-            const result = await orderCollection.find().toArray()
-            res.send(result)
-        })
 
-        app.patch('/orders/:id', async (req, res) => {
-            const { id } = req.params;
-            const { status } = req.body;
-            const result = await orderCollection.updateOne(
-                { _id: new ObjectId(id) },
-                { $set: { status } }
-            );
-            res.send(result);
-        });
+    app.get('/orders',  async (req, res) => {
+      const result = await orderCollection.find().toArray()
+      res.send(result)
+    })
+
+    app.patch('/orders/:id', async (req, res) => {
+      const { id } = req.params;
+      const { status } = req.body;
+      const result = await orderCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { status } }
+      );   
+      res.send(result);
+    });
+
+
 
 
 
         //  Community related api
 
-        app.get('/community', async (req, res) => {
-            const result = await communityCollection.find().toArray()
-            res.send(result)
-        })
+    app.get('/community',  async (req, res) => {
+      const result = await communityCollection.find().toArray()
+      res.send(result)
+    })
 
 
         //  QUESTIONBANK RELATED APIS
@@ -509,23 +559,23 @@ async function run() {
         })
 
 
-        app.get('/practice-questions', async (req, res) => {
-            try {
-                const { subject, paper, chapter } = req.query;
+app.get('/practice-questions', async (req, res) => {
+  try {
+    const { subject, paper, chapter } = req.query;
 
-                // Build dynamic filter object
-                const filter = {};
-                if (subject) filter.subject = subject;
-                if (paper) filter.paper = paper;
-                if (chapter) filter.chapter = chapter;
+    // Build dynamic filter object
+    const filter = {};
+    if (subject) filter.subject = subject;
+    if (paper) filter.paper = paper;
+    if (chapter) filter.chapter = chapter;
 
-                const result = await practiceCollection.find(filter).toArray();
-                res.status(200).json(result);
-            } catch (err) {
-                console.error(err);
-                res.status(500).json({ message: 'Server Error' });
-            }
-        });
+    const result = await practiceCollection.find(filter).toArray();
+    res.status(200).json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
 
 
 
@@ -543,7 +593,7 @@ async function run() {
         })
 
 
-
+        
         // enrollments related api
         app.post('/enrollments', async (req, res) => {
             const booked = req.body

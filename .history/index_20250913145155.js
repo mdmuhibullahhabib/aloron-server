@@ -11,7 +11,6 @@ const axios = require("axios");
 // middleware
 app.use(cors())
 app.use(express.json())
-app.use(express.urlencoded());
 
 const { MongoClient, ServerApiVersion } = require('mongodb')
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.w5eri.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
@@ -130,7 +129,8 @@ async function run() {
                 },
             });
 
-            const saveData = await paymentCollection.insertOne(payment);
+
+            // const saveData = await paymentCollection.insertOne(payment);
 
             //step-3 : get the url for payment
             const gatewayUrl = iniResponse?.data?.GatewayPageURL;
@@ -140,56 +140,9 @@ async function run() {
             //step-4: redirect the customer to the gateway
             res.send({ gatewayUrl });
 
-        });
-
-        app.post("/success-payment", async (req, res) => {
-            //step-5 : success payment data
-            const paymentSuccess = req.body;
-
-            //step-6: Validation
-            const { data } = await axios.get(
-                `https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${paymentSuccess.val_id}&store_id=bistr67745f5723a7c&store_passwd=bistr67745f5723a7c@ssl&format=json`
-            );
-            if (data.status !== "VALID") {
-                return res.send({ message: "Invalid payment" });
-            }
-
-            //step-7: update the payment to your database
-            const updatePayment = await paymentCollection.updateOne(
-                { transactionId: data.tran_id },
-                {
-                    $set: {
-                        status: "success",
-                    },
-                }
-            );
-
-            //step-8: find the payment for more functionality
-            const payment = await paymentCollection.findOne({
-                transactionId: data.tran_id,
-            });
-
-            // console.log("payment", payment);
-
-            //  carefully delete each item from the cart
-            // console.log("payment info", payment);
-            const query = {
-                _id: {
-                    $in: payment.cartIds.map((id) => new ObjectId(id)),
-                },
-            };
-
-            //step:8:delete the cart data
-            const deleteResult = await cartCollection.deleteMany(query);
-
-            // console.log("deleteResult", deleteResult);
-
-            //step-9: redirect the customer to success page
-            res.redirect("http://localhost:5173/success");
-            console.log(updatePayment, "updatePayment");
-            console.log("isValidPayment", data);
-        });
-
+            // const result = await paymentCollection.insertOne(booked)
+            // res.send(result)
+        })
 
 
         // doctor related api
