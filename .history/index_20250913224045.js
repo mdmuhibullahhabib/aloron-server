@@ -3,7 +3,7 @@ require('dotenv').config()
 const app = express()
 const jwt = require('jsonwebtoken')
 const cors = require('cors')
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5000
 const { ObjectId } = require('mongodb')
 const axios = require("axios");
 
@@ -11,7 +11,7 @@ const axios = require("axios");
 // middleware
 app.use(cors())
 app.use(express.json())
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded());
 
 const { MongoClient, ServerApiVersion } = require('mongodb')
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.w5eri.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
@@ -95,10 +95,10 @@ async function run() {
                 total_amount: payment.price,
                 currency: "BDT",
                 tran_id: trxid,
-                success_url: "http://localhost:5000/success-payment",
+                success_url: "http://localhost:5001/success-payment",
                 fail_url: "http://localhost:5173/fail",
                 cancel_url: "http://localhost:5173/cancle",
-                ipn_url: "http://localhost:5000/ipn-success-payment",
+                ipn_url: "http://localhost:5001/ipn-success-payment",
                 cus_name: "Customer Name",
                 cus_email: `${payment.email}`,
                 cus_add1: "Dhaka&",
@@ -145,7 +145,6 @@ async function run() {
         app.post("/success-payment", async (req, res) => {
             //step-5 : success payment data
             const paymentSuccess = req.body;
-            // console.log(paymentSuccess)
 
             //step-6: Validation
             const { data } = await axios.get(
@@ -165,34 +164,53 @@ async function run() {
                 }
             );
 
-            // console.log(updatePayment, "updatePayment");
-
             //step-8: find the payment for more functionality
-            const payment = await paymentCollection.findOne({
-                transactionId: data.tran_id,
-            });
+            // const payment = await paymentCollection.findOne({
+            //     transactionId: data.tran_id,
+            // });
 
             // console.log("payment", payment);
 
             //  carefully delete each item from the cart
-            const query = {
-                _id: {
-                    $in: payment.cartIds.map((id) => new ObjectId(id)),
-                },
-            };
+            // console.log("payment info", payment);
+            // const query = {
+            //     _id: {
+            //         $in: payment.cartIds.map((id) => new ObjectId(id)),
+            //     },
+            // };
 
-            // step:8:delete the cart data 
-            const deleteResult = await cartCollection.deleteMany(query);
+            // //step:8:delete the cart data
+            // const deleteResult = await cartCollection.deleteMany(query);
 
-            // console.log("deleteResult", deleteResult);
+            // // console.log("deleteResult", deleteResult);
 
-            //step-9: redirect the customer to success page
-            res.redirect("http://localhost:5173/success");
+            // //step-9: redirect the customer to success page
+            // res.redirect("http://localhost:5173/success");
             // console.log(updatePayment, "updatePayment");
             // console.log("isValidPayment", data);
-
+            
         });
 
+
+
+        // doctor related api
+        app.post('/doctors', async (req, res) => {
+            const booked = req.body
+            const result = await doctorsCollection.insertOne(booked)
+            res.send(result)
+        })
+
+        app.get('/doctors', async (req, res) => {
+            const result = await doctorsCollection.find().toArray()
+            res.send(result)
+        })
+
+        app.delete('/doctors/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const result = await doctorsCollection.deleteOne(query)
+            res.send(result)
+        })
 
         // user related apis
         app.get('/users', async (req, res) => {

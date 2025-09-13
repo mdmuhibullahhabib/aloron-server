@@ -3,7 +3,7 @@ require('dotenv').config()
 const app = express()
 const jwt = require('jsonwebtoken')
 const cors = require('cors')
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5000
 const { ObjectId } = require('mongodb')
 const axios = require("axios");
 
@@ -95,10 +95,10 @@ async function run() {
                 total_amount: payment.price,
                 currency: "BDT",
                 tran_id: trxid,
-                success_url: "http://localhost:5000/success-payment",
+                success_url: "http://localhost:5001/success-payment",
                 fail_url: "http://localhost:5173/fail",
                 cancel_url: "http://localhost:5173/cancle",
-                ipn_url: "http://localhost:5000/ipn-success-payment",
+                ipn_url: "http://localhost:5001/ipn-success-payment",
                 cus_name: "Customer Name",
                 cus_email: `${payment.email}`,
                 cus_add1: "Dhaka&",
@@ -145,7 +145,7 @@ async function run() {
         app.post("/success-payment", async (req, res) => {
             //step-5 : success payment data
             const paymentSuccess = req.body;
-            // console.log(paymentSuccess)
+            console.log(paymentSuccess)
 
             //step-6: Validation
             const { data } = await axios.get(
@@ -165,32 +165,31 @@ async function run() {
                 }
             );
 
-            // console.log(updatePayment, "updatePayment");
-
             //step-8: find the payment for more functionality
             const payment = await paymentCollection.findOne({
                 transactionId: data.tran_id,
             });
 
-            // console.log("payment", payment);
+            console.log("payment", payment);
 
             //  carefully delete each item from the cart
+            console.log("payment info", payment);
             const query = {
                 _id: {
                     $in: payment.cartIds.map((id) => new ObjectId(id)),
                 },
             };
 
-            // step:8:delete the cart data 
+            // step:8:delete the cart data
             const deleteResult = await cartCollection.deleteMany(query);
 
             // console.log("deleteResult", deleteResult);
 
             //step-9: redirect the customer to success page
             res.redirect("http://localhost:5173/success");
-            // console.log(updatePayment, "updatePayment");
-            // console.log("isValidPayment", data);
-
+            console.log(updatePayment, "updatePayment");
+            console.log("isValidPayment", data);
+            
         });
 
 

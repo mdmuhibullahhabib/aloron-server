@@ -145,7 +145,7 @@ async function run() {
         app.post("/success-payment", async (req, res) => {
             //step-5 : success payment data
             const paymentSuccess = req.body;
-            // console.log(paymentSuccess)
+            console.log(paymentSuccess)
 
             //step-6: Validation
             const { data } = await axios.get(
@@ -165,12 +165,12 @@ async function run() {
                 }
             );
 
-            // console.log(updatePayment, "updatePayment");
+            console.log(updatePayment, "updatePayment");
 
             //step-8: find the payment for more functionality
-            const payment = await paymentCollection.findOne({
-                transactionId: data.tran_id,
-            });
+            // const payment = await paymentCollection.findOne({
+            //     transactionId: data.tran_id,
+            // });
 
             // console.log("payment", payment);
 

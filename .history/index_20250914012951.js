@@ -145,7 +145,7 @@ async function run() {
         app.post("/success-payment", async (req, res) => {
             //step-5 : success payment data
             const paymentSuccess = req.body;
-            // console.log(paymentSuccess)
+            console.log(paymentSuccess)
 
             //step-6: Validation
             const { data } = await axios.get(

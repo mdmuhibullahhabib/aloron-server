@@ -145,7 +145,7 @@ async function run() {
         app.post("/success-payment", async (req, res) => {
             //step-5 : success payment data
             const paymentSuccess = req.body;
-            // console.log(paymentSuccess)
+            console.log(paymentSuccess)
 
             //step-6: Validation
             const { data } = await axios.get(
@@ -165,16 +165,17 @@ async function run() {
                 }
             );
 
-            // console.log(updatePayment, "updatePayment");
+            console.log(updatePayment, "updatePayment");
 
             //step-8: find the payment for more functionality
-            const payment = await paymentCollection.findOne({
-                transactionId: data.tran_id,
-            });
+            // const payment = await paymentCollection.findOne({
+            //     transactionId: data.tran_id,
+            // });
 
             // console.log("payment", payment);
 
             //  carefully delete each item from the cart
+            // console.log("payment info", payment);
             const query = {
                 _id: {
                     $in: payment.cartIds.map((id) => new ObjectId(id)),
@@ -182,7 +183,7 @@ async function run() {
             };
 
             // step:8:delete the cart data 
-            const deleteResult = await cartCollection.deleteMany(query);
+            // const deleteResult = await cartCollection.deleteMany(query);
 
             // console.log("deleteResult", deleteResult);
 

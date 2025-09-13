@@ -3,7 +3,7 @@ require('dotenv').config()
 const app = express()
 const jwt = require('jsonwebtoken')
 const cors = require('cors')
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5000
 const { ObjectId } = require('mongodb')
 const axios = require("axios");
 
@@ -80,118 +80,193 @@ async function run() {
         }
 
         // payment related apis
+        // app.post('/create-ssl-payment', async (req, res) => {
+        //     const payment = req.body;
+        //     console.log("payment", payment)
+
+        //     const trxid = new ObjectId().toString();
+
+        //     payment.transactionId = trxid;
+
+        //     //step 1: initialize the data
+        //     const initiate = {
+        //         store_id: "aloro68c50c0ceb261",
+        //         store_passwd: "aloro68c50c0ceb261@ssl",
+        //         total_amount: payment.price,
+        //         currency: "BDT",
+        //         tran_id: trxid,
+        //         success_url: "http://localhost:5001/success-payment",
+        //         fail_url: "http://localhost:5173/fail",
+        //         cancel_url: "http://localhost:5173/cancle",
+        //         ipn_url: "http://localhost:5001/ipn-success-payment",
+        //         cus_name: "Customer Name",
+        //         cus_email: `${payment.email}`,
+        //         cus_add1: "Dhaka&",
+        //         cus_add2: "Dhaka&",
+        //         cus_city: "Dhaka&",
+        //         cus_state: "Dhaka&",
+        //         cus_postcode: 1000,
+        //         cus_country: "Bangladesh",
+        //         cus_phone: "01711111111",
+        //         cus_fax: "01711111111",
+        //         shipping_method: "NO",
+        //         product_name: "Laptop",
+        //         product_category: "Laptop",
+        //         product_profile: "general",
+        //         multi_card_name: "mastercard,visacard,amexcard",
+        //         value_a: "ref001_A&",
+        //         value_b: "ref002_B&",
+        //         value_c: "ref003_C&",
+        //         value_d: "ref004_D",
+        //     };
+
+        //     //step 2: send the request to sslcommerz payment gateway
+        //     const iniResponse = await axios({
+        //         url: "https://sandbox.sslcommerz.com/gwprocess/v4/api.php",
+        //         method: "POST",
+        //         data: initiate,
+        //         headers: {
+        //             "Content-Type": "application/x-www-form-urlencoded",
+        //         },
+        //     });
+
+        //     const saveData = await paymentCollection.insertOne(payment);
+
+        //     //step-3 : get the url for payment
+        //     const gatewayUrl = iniResponse?.data?.GatewayPageURL;
+
+        //     console.log(gatewayUrl, "gatewayUrl");
+
+        //     //step-4: redirect the customer to the gateway
+        //     res.send({ gatewayUrl });
+
+        // });
+
+        // app.post("/success-payment", async (req, res) => {
+        //     //step-5 : success payment data
+        //     const paymentSuccess = req.body;
+        //     console.log(paymentSuccess)
+
+        //     //step-6: Validation
+        //     const { data } = await axios.get(
+        //         `https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${paymentSuccess.val_id}&store_id=aloro68c50c0ceb261&store_passwd=aloro68c50c0ceb261@ssl&format=json`
+        //     );
+        //     if (data.status !== "VALID") {
+        //         return res.send({ message: "Invalid payment" });
+        //     }
+
+        //     //step-7: update the payment to your database
+        //     const updatePayment = await paymentCollection.updateOne(
+        //         { transactionId: data.tran_id },
+        //         {
+        //             $set: {
+        //                 status: "success",
+        //             },
+        //         }
+        //     );
+
+        //     //step-8: find the payment for more functionality
+        //     const payment = await paymentCollection.findOne({
+        //         transactionId: data.tran_id,
+        //     });
+
+        //     console.log("payment", payment);
+
+        //     //  carefully delete each item from the cart
+        //     console.log("payment info", payment);
+        //     const query = {
+        //         _id: {
+        //             $in: payment.cartIds.map((id) => new ObjectId(id)),
+        //         },
+        //     };
+
+        //     // step:8:delete the cart data
+        //     const deleteResult = await cartCollection.deleteMany(query);
+
+        //     // console.log("deleteResult", deleteResult);
+
+        //     //step-9: redirect the customer to success page
+        //     res.redirect("http://localhost:5173/success");
+        //     console.log(updatePayment, "updatePayment");
+        //     console.log("isValidPayment", data);
+            
+        // });
+
         app.post('/create-ssl-payment', async (req, res) => {
-            const payment = req.body;
-            console.log("payment", payment)
+  try {
+    const payment = req.body;
+    const trxid = new ObjectId().toString();
+    payment.transactionId = trxid;
+    payment.status = 'pending';
 
-            const trxid = new ObjectId().toString();
+    // insert payment first
+    await paymentCollection.insertOne(payment);
 
-            payment.transactionId = trxid;
+    const postData = new URLSearchParams({
+      store_id: "aloro68c50c0ceb261",
+      store_passwd: "aloro68c50c0ceb261@ssl",
+      total_amount: payment.price,
+      currency: "BDT",
+      tran_id: trxid,
+      success_url: "http://localhost:5001/success-payment",
+      fail_url: "http://localhost:5173/fail",
+      cancel_url: "http://localhost:5173/cancel",
+      cus_name: payment.name || "Customer",
+      cus_email: payment.email,
+      product_name: payment.product_name || "Product",
+      product_category: payment.product_category || "General",
+      product_profile: "general",
+    }).toString();
 
-            //step 1: initialize the data
-            const initiate = {
-                store_id: "aloro68c50c0ceb261",
-                store_passwd: "aloro68c50c0ceb261@ssl",
-                total_amount: payment.price,
-                currency: "BDT",
-                tran_id: trxid,
-                success_url: "http://localhost:5000/success-payment",
-                fail_url: "http://localhost:5173/fail",
-                cancel_url: "http://localhost:5173/cancle",
-                ipn_url: "http://localhost:5000/ipn-success-payment",
-                cus_name: "Customer Name",
-                cus_email: `${payment.email}`,
-                cus_add1: "Dhaka&",
-                cus_add2: "Dhaka&",
-                cus_city: "Dhaka&",
-                cus_state: "Dhaka&",
-                cus_postcode: 1000,
-                cus_country: "Bangladesh",
-                cus_phone: "01711111111",
-                cus_fax: "01711111111",
-                shipping_method: "NO",
-                product_name: "Laptop",
-                product_category: "Laptop",
-                product_profile: "general",
-                multi_card_name: "mastercard,visacard,amexcard",
-                value_a: "ref001_A&",
-                value_b: "ref002_B&",
-                value_c: "ref003_C&",
-                value_d: "ref004_D",
-            };
+    const iniResponse = await axios.post(
+      "https://sandbox.sslcommerz.com/gwprocess/v4/api.php",
+      postData,
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+    );
 
-            //step 2: send the request to sslcommerz payment gateway
-            const iniResponse = await axios({
-                url: "https://sandbox.sslcommerz.com/gwprocess/v4/api.php",
-                method: "POST",
-                data: initiate,
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-            });
+    const gatewayUrl = iniResponse?.data?.GatewayPageURL;
+    if (!gatewayUrl) return res.status(500).send({ message: "Gateway URL not found" });
 
-            const saveData = await paymentCollection.insertOne(payment);
+    res.send({ gatewayUrl });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ message: "Server error" });
+  }
+});
 
-            //step-3 : get the url for payment
-            const gatewayUrl = iniResponse?.data?.GatewayPageURL;
+app.post("/success-payment", async (req, res) => {
+  try {
+    const paymentSuccess = req.body;
+    const { val_id, tran_id } = paymentSuccess;
 
-            console.log(gatewayUrl, "gatewayUrl");
+    const { data } = await axios.get(
+      `https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${val_id}&store_id=aloro68c50c0ceb261&store_passwd=aloro68c50c0ceb261@ssl&format=json`
+    );
 
-            //step-4: redirect the customer to the gateway
-            res.send({ gatewayUrl });
+    if (data.status !== "VALID") return res.status(400).send({ message: "Invalid Payment" });
 
-        });
+    const payment = await paymentCollection.findOne({ transactionId: data.tran_id });
+    if (!payment) return res.status(404).send({ message: "Payment not found" });
 
-        app.post("/success-payment", async (req, res) => {
-            //step-5 : success payment data
-            const paymentSuccess = req.body;
-            // console.log(paymentSuccess)
+    await paymentCollection.updateOne(
+      { transactionId: data.tran_id },
+      { $set: { status: "success", validatedAt: new Date() } }
+    );
 
-            //step-6: Validation
-            const { data } = await axios.get(
-                `https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${paymentSuccess.val_id}&store_id=aloro68c50c0ceb261&store_passwd=aloro68c50c0ceb261@ssl&format=json`
-            );
-            if (data.status !== "VALID") {
-                return res.send({ message: "Invalid payment" });
-            }
+    // safely delete cart items
+    if (payment.cartIds && payment.cartIds.length > 0) {
+      await cartCollection.deleteMany({
+        _id: { $in: payment.cartIds.map(id => new ObjectId(id)) }
+      });
+    }
 
-            //step-7: update the payment to your database
-            const updatePayment = await paymentCollection.updateOne(
-                { transactionId: data.tran_id },
-                {
-                    $set: {
-                        status: "success",
-                    },
-                }
-            );
+    res.redirect("http://localhost:5173/success");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ message: "Server error" });
+  }
+});
 
-            // console.log(updatePayment, "updatePayment");
-
-            //step-8: find the payment for more functionality
-            const payment = await paymentCollection.findOne({
-                transactionId: data.tran_id,
-            });
-
-            // console.log("payment", payment);
-
-            //  carefully delete each item from the cart
-            const query = {
-                _id: {
-                    $in: payment.cartIds.map((id) => new ObjectId(id)),
-                },
-            };
-
-            // step:8:delete the cart data 
-            const deleteResult = await cartCollection.deleteMany(query);
-
-            // console.log("deleteResult", deleteResult);
-
-            //step-9: redirect the customer to success page
-            res.redirect("http://localhost:5173/success");
-            // console.log(updatePayment, "updatePayment");
-            // console.log("isValidPayment", data);
-
-        });
 
 
         // user related apis
