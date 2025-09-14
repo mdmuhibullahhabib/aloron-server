@@ -145,7 +145,7 @@ async function run() {
         app.post("/success-payment", async (req, res) => {
             //step-5 : success payment data
             const paymentSuccess = req.body;
-            console.log(paymentSuccess)
+            // console.log(paymentSuccess)
 
             //step-6: Validation
             const { data } = await axios.get(
@@ -170,19 +170,17 @@ async function run() {
                 transactionId: data.tran_id,
             });
 
-            console.log('payment', payment)
-
 
             // Step 4: Handle by category
             if (payment.category === "shop") {
                 // Remove items from cart
                 if (payment.cartIds && payment.cartIds.length > 0) {
-                    const query = {
-                        _id: {
-                            $in: payment.cartIds.map((id) => new ObjectId(id)),
-                        },
-                    };
-                    const deleteResult = await cartCollection.deleteMany(query);
+                                // const query = {
+            //     _id: {
+            //         $in: payment.cartIds.map((id) => new ObjectId(id)),
+            //     },
+            // };
+                   const deleteResult = await cartCollection.deleteMany(query);
                 }
             }
 

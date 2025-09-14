@@ -145,7 +145,7 @@ async function run() {
         app.post("/success-payment", async (req, res) => {
             //step-5 : success payment data
             const paymentSuccess = req.body;
-            console.log(paymentSuccess)
+            // console.log(paymentSuccess)
 
             //step-6: Validation
             const { data } = await axios.get(
@@ -170,55 +170,34 @@ async function run() {
                 transactionId: data.tran_id,
             });
 
-            console.log('payment', payment)
 
+    // Step 4: Handle by category
+    if (payment.category === "shop") {
+      // Remove items from cart
+      if (payment.cartIds && payment.cartIds.length > 0) {
+        const query = { _id: { $in: payment.cartIds.map((id) => new ObjectId(id)) } };
+        await cartCollection.deleteMany(query);
+      }
+    }
 
-            // Step 4: Handle by category
-            if (payment.category === "shop") {
-                // Remove items from cart
-                if (payment.cartIds && payment.cartIds.length > 0) {
-                    const query = {
-                        _id: {
-                            $in: payment.cartIds.map((id) => new ObjectId(id)),
-                        },
-                    };
-                    const deleteResult = await cartCollection.deleteMany(query);
-                }
-            }
-
-            if (payment.category === "course") {
-                // Add enrollment
-                await courseEnrollments.insertOne({
-                    userId: payment.userId,
-                    courseId: payment.referenceId,
-                    enrolledAt: new Date(),
-                });
-            }
-
-            if (payment.category === "subscription") {
-                // Update user's subscription
-                await usersCollection.updateOne(
-                    { email: payment.email },
-                    {
-                        $set: {
-                            subscription: {
-                                plan: payment.referenceId,
-                                startDate: new Date(),
-                                endDate: addMonths(new Date(), 1),
-                                status: "active",
-                            },
-                        },
-                    }
-                );
-            }
+        if (payment.category === "course") {
+      // Add enrollment
+      await courseEnrollments.insertOne({
+        userId: payment.userId,
+        courseId: payment.referenceId,
+        enrolledAt: new Date(),
+      });
+    }
 
             //  carefully delete each item from the cart
-            // const query = {
-            //     _id: {
-            //         $in: payment.cartIds.map((id) => new ObjectId(id)),
-            //     },
-            // };
-            // const deleteResult = await cartCollection.deleteMany(query);
+            const query = {
+                _id: {
+                    $in: payment.cartIds.map((id) => new ObjectId(id)),
+                },
+            };
+
+            // step:8:delete the cart data 
+            const deleteResult = await cartCollection.deleteMany(query);
 
             // console.log("deleteResult", deleteResult);
 
