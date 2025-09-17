@@ -151,10 +151,8 @@ async function run() {
 
             if (payment.category === "course") {
                 // Mark enrollment as pending
-                await enrollmentCollection.insertOne({
+                await courseEnrollments.insertOne({
                     userId: payment.userId,
-                    email: payment.email,
-                    price: payment.price,
                     courseId: payment.referenceId,
                     transactionId: trxid,
                     status: "pending",
@@ -230,7 +228,16 @@ async function run() {
 
             // handle course
             if (payment.category === "course") {
-                await enrollmentCollection.updateOne(
+                // Add enrollment
+                await courseEnrollments.insertOne({
+                    userId: payment.userId,
+                    courseId: payment.referenceId,
+                    enrolledAt: new Date(),
+                });
+            }
+
+            if (payment.category === "course") {
+                await courseEnrollments.updateOne(
                     { transactionId: data.tran_id },
                     {
                         $set: {
@@ -240,6 +247,7 @@ async function run() {
                     }
                 );
             }
+
 
             if (payment.category === "shop") {
                 await orderCollection.updateOne(
@@ -251,37 +259,35 @@ async function run() {
                         },
                     }
                 );
-            }
-
-            // Step 4: Handle by category
-            if (payment.category === "shop") {
-                // Remove items from cart
-                if (payment.cartIds && payment.cartIds.length > 0) {
-                    const query = {
-                        _id: {
-                            $in: payment.cartIds.map((id) => new ObjectId(id)),
-                        },
-                    };
-                    const deleteResult = await cartCollection.deleteMany(query);
+                // Step 4: Handle by category
+                if (payment.category === "shop") {
+                    // Remove items from cart
+                    if (payment.cartIds && payment.cartIds.length > 0) {
+                        const query = {
+                            _id: {
+                                $in: payment.cartIds.map((id) => new ObjectId(id)),
+                            },
+                        };
+                        const deleteResult = await cartCollection.deleteMany(query);
+                    }
                 }
-            }
 
 
 
-            //  carefully delete each item from the cart
-            // const query = {
-            //     _id: {
-            //         $in: payment.cartIds.map((id) => new ObjectId(id)),
-            //     },
-            // };
-            // const deleteResult = await cartCollection.deleteMany(query);
+                //  carefully delete each item from the cart
+                // const query = {
+                //     _id: {
+                //         $in: payment.cartIds.map((id) => new ObjectId(id)),
+                //     },
+                // };
+                // const deleteResult = await cartCollection.deleteMany(query);
 
-            //step-9: redirect the customer to success page
-            res.redirect("http://localhost:5173/success");
-            // console.log(updatePayment, "updatePayment");
-            // console.log("isValidPayment", data);
+                //step-9: redirect the customer to success page
+                res.redirect("http://localhost:5173/success");
+                // console.log(updatePayment, "updatePayment");
+                // console.log("isValidPayment", data);
 
-        });
+            });
 
         // user related apis
         app.get('/users', async (req, res) => {

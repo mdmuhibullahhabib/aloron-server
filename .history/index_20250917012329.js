@@ -86,6 +86,7 @@ async function run() {
             console.log("payment", payment)
 
             const trxid = new ObjectId().toString();
+
             payment.transactionId = trxid;
 
             //step 1: initialize the data
@@ -140,39 +141,11 @@ async function run() {
                     transactionId: trxid,
                     price: payment.price,
                     status: "pending",
-                    startDate: null, // not started yet
-                    endDate: null,
+                    startDate: new Date(),
+                    endDate: addMonths(new Date(), 1),
                     examCredit: payment.examCredit || 1,
                     createdAt: new Date(),
                     updatedAt: new Date(),
-                });
-            }
-
-
-            if (payment.category === "course") {
-                // Mark enrollment as pending
-                await enrollmentCollection.insertOne({
-                    userId: payment.userId,
-                    email: payment.email,
-                    price: payment.price,
-                    courseId: payment.referenceId,
-                    transactionId: trxid,
-                    status: "pending",
-                    enrolledAt: null,
-                });
-            }
-
-            if (payment.category === "shop") {
-                // Save cart order as pending
-                await orderCollection.insertOne({
-                    userId: payment.userId,
-                    email: payment.email,
-                    cartIds: payment.cartIds,
-                    items: payment.menuItemIds,
-                    transactionId: trxid,
-                    total: payment.price,
-                    status: "pending",
-                    createdAt: new Date(),
                 });
             }
 
@@ -220,38 +193,11 @@ async function run() {
                         $set: {
                             status: "active",
                             updatedAt: new Date(),
-                            startDate: new Date(),
-                            endDate: addMonths(new Date(), 1),
-                        },
-                    }
-                );
-                console.log(updateSubscription)
-            }
-
-            // handle course
-            if (payment.category === "course") {
-                await enrollmentCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "active",
-                            enrolledAt: new Date(),
                         },
                     }
                 );
             }
-
-            if (payment.category === "shop") {
-                await orderCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "completed",
-                            updatedAt: new Date(),
-                        },
-                    }
-                );
-            }
+            console.log(updateSubscription)
 
             // Step 4: Handle by category
             if (payment.category === "shop") {
@@ -266,15 +212,73 @@ async function run() {
                 }
             }
 
+            if (payment.category === "course") {
+                // Add enrollment
+                await courseEnrollments.insertOne({
+                    userId: payment.userId,
+                    courseId: payment.referenceId,
+                    enrolledAt: new Date(),
+                });
+            }
+
+            // if (payment.category === "subscription") {
+            //     await subscriptionCollection.insertOne({
+            //         userId: payment.userId,
+            //         userEmail: payment.email,
+            //         planId: payment.referenceId,
+            //         transactionId: data.tran_id,
+            //         status: "active",
+            //         startDate: new Date(),
+            //         endDate: addMonths(new Date(), 1),
+            //         examCredit: payment.examCredit || 1,
+            //         createdAt: new Date(),
+            //         updatedAt: new Date(),
+            //     });
+            // }
+
+
+            // if (payment.category === "subscription") {
+            //     // Update user's subscription
+            //     await subscriptionCollection.updateOne(
+            //         { email: payment.email },
+            //         {
+            //             $set: {
+            //                 subscription: {
+            //                     plan: payment.referenceId,
+            //                     startDate: new Date(),
+            //                     endDate: addMonths(new Date(), 1),
+            //                     status: "active",
+            //                 },
+            //             },
+            //         }
+            //     );
+            // }
+
+            // if (payment.category === "subscription") {
+            //     const updateSubscription = await subscriptionCollection.updateOne(
+            //         { transactionId: data.tran_id },
+            //         {
+            //             $set: {
+            //                 // databaseUser: payment.referenceId,
+            //                 startDate: new Date(),
+            //                 endDate: addMonths(new Date(), 1),
+            //                 updatedAt: new Date(),
+            //                 status: "active",
+            //             },
+            //         }
+            //     );
+            //     console.log(updateSubscription)
+            // }
 
 
             //  carefully delete each item from the cart
-            // const query = {
-            //     _id: {
-            //         $in: payment.cartIds.map((id) => new ObjectId(id)),
-            //     },
-            // };
-            // const deleteResult = await cartCollection.deleteMany(query);
+
+            const query = {
+                _id: {
+                    $in: payment.cartIds.map((id) => new ObjectId(id)),
+                },
+            };
+            const deleteResult = await cartCollection.deleteMany(query);
 
             //step-9: redirect the customer to success page
             res.redirect("http://localhost:5173/success");
@@ -282,6 +286,7 @@ async function run() {
             // console.log("isValidPayment", data);
 
         });
+
 
         // user related apis
         app.get('/users', async (req, res) => {

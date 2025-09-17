@@ -6,7 +6,6 @@ const cors = require('cors')
 const port = process.env.PORT || 5000;
 const { ObjectId } = require('mongodb')
 const axios = require("axios");
-const { addMonths } = require("date-fns");
 
 
 // middleware
@@ -86,6 +85,7 @@ async function run() {
             console.log("payment", payment)
 
             const trxid = new ObjectId().toString();
+
             payment.transactionId = trxid;
 
             //step 1: initialize the data
@@ -129,55 +129,15 @@ async function run() {
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
             });
+
             const saveData = await paymentCollection.insertOne(payment);
 
-            // If subscription, also create a pending subscription entry
-            if (payment.category === "subscription") {
-                await subscriptionCollection.insertOne({
-                    userId: payment.userId,
-                    userEmail: payment.email,
-                    planId: payment.referenceId,
-                    transactionId: trxid,
-                    price: payment.price,
-                    status: "pending",
-                    startDate: null, // not started yet
-                    endDate: null,
-                    examCredit: payment.examCredit || 1,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                });
-            }
-
-
-            if (payment.category === "course") {
-                // Mark enrollment as pending
-                await enrollmentCollection.insertOne({
-                    userId: payment.userId,
-                    email: payment.email,
-                    price: payment.price,
-                    courseId: payment.referenceId,
-                    transactionId: trxid,
-                    status: "pending",
-                    enrolledAt: null,
-                });
-            }
-
-            if (payment.category === "shop") {
-                // Save cart order as pending
-                await orderCollection.insertOne({
-                    userId: payment.userId,
-                    email: payment.email,
-                    cartIds: payment.cartIds,
-                    items: payment.menuItemIds,
-                    transactionId: trxid,
-                    total: payment.price,
-                    status: "pending",
-                    createdAt: new Date(),
-                });
-            }
-
-            //step-3 : get the url for payment and redirect the customer to the gateway
+            //step-3 : get the url for payment
             const gatewayUrl = iniResponse?.data?.GatewayPageURL;
+
+            console.log(gatewayUrl, "gatewayUrl");
+
+            //step-4: redirect the customer to the gateway
             res.send({ gatewayUrl });
 
         });
@@ -189,7 +149,7 @@ async function run() {
 
             //step-6: Validation
             const { data } = await axios.get(
-                `https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${paymentSuccess.val_id}&store_id=${process.env.PAYMENT_ID}&store_passwd=${process.env.PAYMENT_PASS}&format=json`
+                `https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${paymentSuccess.val_id}&store_id=`${process.env.PAYMENT_PASS}`&store_passwd=aloro68c50c0ceb261@ssl&format=json`
             );
             if (data.status !== "VALID") {
                 return res.send({ message: "Invalid payment" });
@@ -212,46 +172,6 @@ async function run() {
 
             console.log('payment', payment)
 
-            // Handle subscription
-            if (payment.category === "subscription") {
-                const updateSubscription = await subscriptionCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "active",
-                            updatedAt: new Date(),
-                            startDate: new Date(),
-                            endDate: addMonths(new Date(), 1),
-                        },
-                    }
-                );
-                console.log(updateSubscription)
-            }
-
-            // handle course
-            if (payment.category === "course") {
-                await enrollmentCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "active",
-                            enrolledAt: new Date(),
-                        },
-                    }
-                );
-            }
-
-            if (payment.category === "shop") {
-                await orderCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "completed",
-                            updatedAt: new Date(),
-                        },
-                    }
-                );
-            }
 
             // Step 4: Handle by category
             if (payment.category === "shop") {
@@ -266,7 +186,31 @@ async function run() {
                 }
             }
 
+            if (payment.category === "course") {
+                // Add enrollment
+                await courseEnrollments.insertOne({
+                    userId: payment.userId,
+                    courseId: payment.referenceId,
+                    enrolledAt: new Date(),
+                });
+            }
 
+            if (payment.category === "subscription") {
+                // Update user's subscription
+                await usersCollection.updateOne(
+                    { email: payment.email },
+                    {
+                        $set: {
+                            subscription: {
+                                plan: payment.referenceId,
+                                startDate: new Date(),
+                                endDate: addMonths(new Date(), 1),
+                                status: "active",
+                            },
+                        },
+                    }
+                );
+            }
 
             //  carefully delete each item from the cart
             // const query = {
@@ -276,12 +220,15 @@ async function run() {
             // };
             // const deleteResult = await cartCollection.deleteMany(query);
 
+            // console.log("deleteResult", deleteResult);
+
             //step-9: redirect the customer to success page
             res.redirect("http://localhost:5173/success");
             // console.log(updatePayment, "updatePayment");
             // console.log("isValidPayment", data);
 
         });
+
 
         // user related apis
         app.get('/users', async (req, res) => {
@@ -424,6 +371,7 @@ async function run() {
         })
 
         // subscription related apis
+        // ✅ Create a subscription
         app.post("/subscriptions", async (req, res) => {
             const subscription = req.body;
             const result = await subscriptionCollection.insertOne(subscription);

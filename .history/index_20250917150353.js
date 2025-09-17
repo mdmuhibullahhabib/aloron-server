@@ -151,10 +151,8 @@ async function run() {
 
             if (payment.category === "course") {
                 // Mark enrollment as pending
-                await enrollmentCollection.insertOne({
+                await courseEnrollments.insertOne({
                     userId: payment.userId,
-                    email: payment.email,
-                    price: payment.price,
                     courseId: payment.referenceId,
                     transactionId: trxid,
                     status: "pending",
@@ -230,28 +228,25 @@ async function run() {
 
             // handle course
             if (payment.category === "course") {
-                await enrollmentCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "active",
-                            enrolledAt: new Date(),
-                        },
-                    }
-                );
+                // Add enrollment
+                await courseEnrollments.insertOne({
+                    userId: payment.userId,
+                    courseId: payment.referenceId,
+                    enrolledAt: new Date(),
+                });
             }
 
-            if (payment.category === "shop") {
-                await orderCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "completed",
-                            updatedAt: new Date(),
-                        },
-                    }
-                );
+                if (payment.category === "shop") {
+        await orderCollection.updateOne(
+            { transactionId: data.tran_id },
+            {
+                $set: {
+                    status: "completed",
+                    updatedAt: new Date(),
+                },
             }
+        );
+        
 
             // Step 4: Handle by category
             if (payment.category === "shop") {

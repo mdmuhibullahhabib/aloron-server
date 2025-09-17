@@ -148,33 +148,31 @@ async function run() {
                 });
             }
 
+            
+    if (payment.category === "course") {
+        // Mark enrollment as pending
+        await courseEnrollments.insertOne({
+            userId: payment.userId,
+            courseId: payment.referenceId,
+            transactionId: trxid,
+            status: "pending",
+            enrolledAt: null,
+        });
+    }
 
-            if (payment.category === "course") {
-                // Mark enrollment as pending
-                await enrollmentCollection.insertOne({
-                    userId: payment.userId,
-                    email: payment.email,
-                    price: payment.price,
-                    courseId: payment.referenceId,
-                    transactionId: trxid,
-                    status: "pending",
-                    enrolledAt: null,
-                });
-            }
-
-            if (payment.category === "shop") {
-                // Save cart order as pending
-                await orderCollection.insertOne({
-                    userId: payment.userId,
-                    email: payment.email,
-                    cartIds: payment.cartIds,
-                    items: payment.menuItemIds,
-                    transactionId: trxid,
-                    total: payment.price,
-                    status: "pending",
-                    createdAt: new Date(),
-                });
-            }
+    if (payment.category === "shop") {
+        // Save cart order as pending
+        await orderCollection.insertOne({
+            userId: payment.userId,
+            email: payment.email,
+            cartIds: payment.cartIds,
+            items: payment.menuItemIds,
+            transactionId: trxid,
+            total: payment.price,
+            status: "pending",
+            createdAt: new Date(),
+        });
+    }
 
             //step-3 : get the url for payment and redirect the customer to the gateway
             const gatewayUrl = iniResponse?.data?.GatewayPageURL;
@@ -214,43 +212,28 @@ async function run() {
 
             // Handle subscription
             if (payment.category === "subscription") {
-                const updateSubscription = await subscriptionCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "active",
-                            updatedAt: new Date(),
-                            startDate: new Date(),
-                            endDate: addMonths(new Date(), 1),
-                        },
-                    }
-                );
-                console.log(updateSubscription)
+            const updateSubscription = await subscriptionCollection.updateOne(
+                { transactionId: data.tran_id },
+                {
+                    $set: {
+                        status: "active",
+                        updatedAt: new Date(),
+                        startDate: new Date(),
+                        endDate: addMonths(new Date(), 1),
+                    },
+                }
+            );
+            console.log(updateSubscription)
             }
 
             // handle course
             if (payment.category === "course") {
-                await enrollmentCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "active",
-                            enrolledAt: new Date(),
-                        },
-                    }
-                );
-            }
-
-            if (payment.category === "shop") {
-                await orderCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "completed",
-                            updatedAt: new Date(),
-                        },
-                    }
-                );
+                // Add enrollment
+                await courseEnrollments.insertOne({
+                    userId: payment.userId,
+                    courseId: payment.referenceId,
+                    enrolledAt: new Date(),
+                });
             }
 
             // Step 4: Handle by category

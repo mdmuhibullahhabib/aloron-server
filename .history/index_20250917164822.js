@@ -230,7 +230,7 @@ async function run() {
 
             // handle course
             if (payment.category === "course") {
-                await enrollmentCollection.updateOne(
+                await courseEnrollments.updateOne(
                     { transactionId: data.tran_id },
                     {
                         $set: {

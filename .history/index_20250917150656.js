@@ -151,10 +151,9 @@ async function run() {
 
             if (payment.category === "course") {
                 // Mark enrollment as pending
-                await enrollmentCollection.insertOne({
+                await courseEnrollments.insertOne({
                     userId: payment.userId,
-                    email: payment.email,
-                    price: payment.price,
+                    
                     courseId: payment.referenceId,
                     transactionId: trxid,
                     status: "pending",
@@ -230,7 +229,7 @@ async function run() {
 
             // handle course
             if (payment.category === "course") {
-                await enrollmentCollection.updateOne(
+                await courseEnrollments.updateOne(
                     { transactionId: data.tran_id },
                     {
                         $set: {
