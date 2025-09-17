@@ -44,7 +44,6 @@ async function run() {
         const subscriptionCollection = client.db('Aloron').collection('subscription')
         const paymentCollection = client.db('Aloron').collection('payment')
         const journalCollection = client.db('Aloron').collection('journals')
-        const blogCollection = client.db('Aloron').collection('blogs')
 
         // jwt related api
         app.post('/jwt', async (req, res) => {
@@ -542,74 +541,38 @@ async function run() {
 
         // journal related apis 
         app.post('/journals', async (req, res) => {
-            const journal = req.body
-            const result = await journalCollection.insertOne(journal)
+            const booked = req.body
+            const result = await productCollection.insertOne(booked)
             res.send(result)
         })
 
-        app.get('/journals', async (req, res) => {
-            const result = await journalCollection.find().toArray()
+        app.get('/products', async (req, res) => {
+            const result = await productCollection.find().toArray()
             res.send(result)
         })
 
-        app.get('/journal', async (req, res) => {
+        app.get('/product', async (req, res) => {
             const email = req.query.email
             const query = { email: email }
-            const result = await journalCollection.find(query).toArray()
+            const result = await productCollection.find(query).toArray()
             res.send(result)
         })
 
-        app.patch('/journals/:id', async (req, res) => {
+        app.patch('/products/:id', async (req, res) => {
             const id = req.params.id
-            const result = await journalCollection.updateOne(
+            const result = await productCollection.updateOne(
                 { _id: new ObjectId(id), status: 'pending' },
                 { $set: { status: 'in-review' } }
             )
             res.send(result)
         })
 
-        app.delete('/journals/:id', async (req, res) => {
+        app.delete('/products/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
-            const result = await journalCollection.deleteOne(query)
+            const result = await productCollection.deleteOne(query)
             res.send(result)
         })
-        
-        // blog related apis 
-        app.post('/blogs', async (req, res) => {
-            const blog = req.body
-            const result = await blogCollection.insertOne(blog)
-            res.send(result)
-        })
-
-        app.get('/blogs', async (req, res) => {
-            const result = await blogCollection.find().toArray()
-            res.send(result)
-        })
-
-        app.get('/blog', async (req, res) => {
-            const email = req.query.email
-            const query = { email: email }
-            const result = await blogCollection.find(query).toArray()
-            res.send(result)
-        })
-
-        app.patch('/blogs/:id', async (req, res) => {
-            const id = req.params.id
-            const result = await blogCollection.updateOne(
-                { _id: new ObjectId(id), status: 'pending' },
-                { $set: { status: 'in-review' } }
-            )
-            res.send(result)
-        })
-
-        app.delete('/blogs/:id', async (req, res) => {
-            const id = req.params.id
-            const query = { _id: new ObjectId(id) }
-            const result = await blogCollection.deleteOne(query)
-            res.send(result)
-        })
-
 
         //  Community related api
         app.get('/community', async (req, res) => {

@@ -594,19 +594,19 @@ async function run() {
             res.send(result)
         })
 
-        app.patch('/blogs/:id', async (req, res) => {
+        app.patch('/journals/:id', async (req, res) => {
             const id = req.params.id
-            const result = await blogCollection.updateOne(
+            const result = await journalCollection.updateOne(
                 { _id: new ObjectId(id), status: 'pending' },
                 { $set: { status: 'in-review' } }
             )
             res.send(result)
         })
 
-        app.delete('/blogs/:id', async (req, res) => {
+        app.delete('/journals/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
-            const result = await blogCollection.deleteOne(query)
+            const result = await journalCollection.deleteOne(query)
             res.send(result)
         })
 
