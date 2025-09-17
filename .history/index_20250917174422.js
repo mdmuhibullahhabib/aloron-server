@@ -240,6 +240,7 @@ async function run() {
                     }
                 );
 
+                // 2️⃣ Remove items from cart (if any)
                 // Remove items from cart
                 if (payment.cartIds && payment.cartIds.length > 0) {
                     const query = {

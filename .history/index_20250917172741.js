@@ -137,6 +137,7 @@ async function run() {
                 });
             }
 
+
             if (payment.category === "course") {
                 // Mark enrollment as pending
                 await enrollmentCollection.insertOne({
@@ -150,22 +151,24 @@ async function run() {
                 });
             }
 
-            // if (payment.category === "shop") {
-            //     // Save cart order as pending
-            //     await orderCollection.insertOne({
-            //         userId: payment.userId,
-            //         email: payment.email,
-            //         cartIds: payment.cartIds,
-            //         items: payment.menuItemIds,
-            //         transactionId: trxid,
-            //         total: payment.price,
-            //         status: "pending",
-            //         createdAt: new Date(),
-            //     });
-            // }
+            if (payment.category === "shop") {
+                // Save cart order as pending
+                await orderCollection.insertOne({
+                    userId: payment.userId,
+                    email: payment.email,
+                    cartIds: payment.cartIds,
+                    items: payment.menuItemIds,
+                    transactionId: trxid,
+                    total: payment.price,
+                    status: "pending",
+                    createdAt: new Date(),
+                });
+            }
 
+            //step-3 : get the url for payment and redirect the customer to the gateway
             const gatewayUrl = iniResponse?.data?.GatewayPageURL;
             res.send({ gatewayUrl });
+
         });
 
         app.post("/success-payment", async (req, res) => {
@@ -227,10 +230,9 @@ async function run() {
                 );
             }
 
-            // Handle Shop Payment
+            // handle shop
             if (payment.category === "shop") {
-                // 1️⃣ Update order status
-                const updateOrder = await orderCollection.updateOne(
+                await orderCollection.updateOne(
                     { transactionId: data.tran_id },
                     {
                         $set: {
@@ -239,7 +241,9 @@ async function run() {
                         },
                     }
                 );
+            }
 
+            if (payment.category === "shop") {
                 // Remove items from cart
                 if (payment.cartIds && payment.cartIds.length > 0) {
                     const query = {
@@ -248,9 +252,18 @@ async function run() {
                         },
                     };
                     const deleteResult = await cartCollection.deleteMany(query);
-                    console.log("🛒 Cart cleared:", deleteResult.deletedCount, "items removed");
                 }
             }
+
+
+
+            //  carefully delete each item from the cart
+            // const query = {
+            //     _id: {
+            //         $in: payment.cartIds.map((id) => new ObjectId(id)),
+            //     },
+            // };
+            // const deleteResult = await cartCollection.deleteMany(query);
 
             //step-9: redirect the customer to success page
             res.redirect("http://localhost:5173/success");

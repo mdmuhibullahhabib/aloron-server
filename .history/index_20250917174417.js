@@ -240,6 +240,7 @@ async function run() {
                     }
                 );
 
+                // 2️⃣ Remove items from cart (if any)
                 // Remove items from cart
                 if (payment.cartIds && payment.cartIds.length > 0) {
                     const query = {
@@ -249,7 +250,9 @@ async function run() {
                     };
                     const deleteResult = await cartCollection.deleteMany(query);
                     console.log("🛒 Cart cleared:", deleteResult.deletedCount, "items removed");
+
                 }
+
             }
 
             //step-9: redirect the customer to success page

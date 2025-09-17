@@ -240,6 +240,7 @@ async function run() {
                     }
                 );
 
+                // 2️⃣ Remove items from cart (if any)
                 // Remove items from cart
                 if (payment.cartIds && payment.cartIds.length > 0) {
                     const query = {
@@ -249,8 +250,21 @@ async function run() {
                     };
                     const deleteResult = await cartCollection.deleteMany(query);
                     console.log("🛒 Cart cleared:", deleteResult.deletedCount, "items removed");
+
                 }
+
+                console.log("✅ Shop order updated:", updateOrder.modifiedCount);
             }
+
+
+
+            //  carefully delete each item from the cart
+            // const query = {
+            //     _id: {
+            //         $in: payment.cartIds.map((id) => new ObjectId(id)),
+            //     },
+            // };
+            // const deleteResult = await cartCollection.deleteMany(query);
 
             //step-9: redirect the customer to success page
             res.redirect("http://localhost:5173/success");
