@@ -390,7 +390,7 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/course', async (req, res) => {
+        app.get('/courses', async (req, res) => {
             const email = req.query.email
             const query = { email: email }
             const result = await courseCollection.find(query).toArray()

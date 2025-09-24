@@ -54,9 +54,9 @@ async function run() {
             })
             res.send({ token })
         })
-
+                          
         // middlewares
-        const verifyToken = (req, res, next) => {
+        const verifyToken = (req, res, next) => { 
             console.log('inside verify token', req.headers.authorization)
             if (!req.headers.authorization) {
                 return res.status(401).send({ message: 'unauthorized access' })
@@ -169,7 +169,7 @@ async function run() {
             const gatewayUrl = iniResponse?.data?.GatewayPageURL;
             res.send({ gatewayUrl });
         });
-
+            
         app.post("/success-payment", async (req, res) => {
             //step-5 : success payment data
             const paymentSuccess = req.body;
@@ -266,10 +266,10 @@ async function run() {
             res.send(result)
         })
 
-        app.get("/payment", async (req, res) => {
+               app.get("/payment", async (req, res) => {
             const id = req.query.id;
             const query = { userId: id };
-            const result = await paymentCollection.find(query).toArray();
+            const result = await subscriptionCollection.find(query).toArray();
             res.send(result);
         });
 
@@ -390,7 +390,7 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/course', async (req, res) => {
+        app.get('/courses', async (req, res) => {
             const email = req.query.email
             const query = { email: email }
             const result = await courseCollection.find(query).toArray()
@@ -586,7 +586,7 @@ async function run() {
             const result = await journalCollection.deleteOne(query)
             res.send(result)
         })
-
+        
         // blog related apis 
         app.post('/blogs', async (req, res) => {
             const blog = req.body

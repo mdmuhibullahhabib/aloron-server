@@ -390,11 +390,11 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/course', async (req, res) => {
-            const email = req.query.email
-            const query = { email: email }
-            const result = await courseCollection.find(query).toArray()
-            res.send(result)
+        app.get('/courses', async (req, res) => {
+                  const id = req.query.id;
+            const query = { userId: id };
+            const result = await paymentCollection.find(query).toArray();
+            res.send(result);
         })
 
         app.patch('/courses/:id', async (req, res) => {
