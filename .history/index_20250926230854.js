@@ -709,7 +709,7 @@ async function run() {
 
 
         // reviews related api
-        app.post('/reviews', verifyToken, async (req, res) => {
+        app.post('/reviews', async (req, res) => {
             const { review, name, date } = req.body
             const result = await reviewsCollection.insertOne({ review, name, date })
             res.send(result)

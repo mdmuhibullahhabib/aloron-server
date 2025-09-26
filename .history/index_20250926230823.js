@@ -678,20 +678,20 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/enrollments', verifyToken, verifyAdmin, async (req, res) => {
+        app.get('/enrollments', verifyToken, verifyToken, async (req, res) => {
             const result = await enrollmentCollection.find().toArray()
             res.send(result)
         })
 
         // student-enrolled-course
-        app.get('/enrolled', verifyToken, async (req, res) => {
+        app.get('/enrolled', async (req, res) => {
             const email = req.query.email
             const query = { email: email }
             const result = await enrollmentCollection.find(query).toArray()
             res.send(result)
         })
 
-        app.patch('/enrollments/:id', verifyToken, async (req, res) => {
+        app.patch('/enrollments/:id', async (req, res) => {
             const id = req.params.id
             const result = await enrollmentCollection.updateOne(
                 { _id: new ObjectId(id), status: 'pending' },
@@ -700,7 +700,7 @@ async function run() {
             res.send(result)
         })
 
-        app.delete('/enrollments/:id', verifyToken, async (req, res) => {
+        app.delete('/enrollments/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
             const result = await enrollmentCollection.deleteOne(query)
@@ -709,7 +709,7 @@ async function run() {
 
 
         // reviews related api
-        app.post('/reviews', verifyToken, async (req, res) => {
+        app.post('/reviews', async (req, res) => {
             const { review, name, date } = req.body
             const result = await reviewsCollection.insertOne({ review, name, date })
             res.send(result)
