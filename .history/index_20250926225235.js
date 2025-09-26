@@ -341,13 +341,15 @@ async function run() {
             res.send(result)
         })
 
+
+
         app.get('/user', async (req, res) => {
             const email = req.query.email
             const result = await userCollection.findOne({ email })
             res.send(result)
         })
 
-        app.put('/users/:id', verifyToken, async (req, res) => {
+        app.put('/users/:id', async (req, res) => {
             const { id } = req.params
             const updateData = req.body
             const result = await userCollection.updateOne(
@@ -357,7 +359,7 @@ async function run() {
             res.send(result)
         })
 
-        app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.delete('/users/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
             const result = await userCollection.deleteOne(query)
@@ -365,13 +367,13 @@ async function run() {
         })
 
         // course related api
-        app.post('/courses',verifyToken, async (req, res) => {
+        app.post('/courses', async (req, res) => {
             const booked = req.body
             const result = await courseCollection.insertOne(booked)
             res.send(result)
         })
 
-        app.patch('/courses/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.patch('/courses/:id', async (req, res) => {
             const { id } = req.params;
             const { status } = req.body;
             const result = await courseCollection.updateOne(
@@ -386,14 +388,14 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/course',verifyToken, async (req, res) => {
+        app.get('/course', async (req, res) => {
             const email = req.query.email
             const query = { email: email }
             const result = await courseCollection.find(query).toArray()
             res.send(result)
         })
 
-        app.patch('/courses/:id', verifyToken, async (req, res) => {
+        app.patch('/courses/:id', async (req, res) => {
             const id = req.params.id
             const result = await courseCollection.updateOne(
                 { _id: new ObjectId(id), status: 'pending' },
@@ -402,7 +404,7 @@ async function run() {
             res.send(result)
         })
 
-        app.delete('/courses/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.delete('/courses/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
             const result = await courseCollection.deleteOne(query)
@@ -410,14 +412,14 @@ async function run() {
         })
 
         // subscription related apis
-        app.post("/subscriptions", verifyToken, async (req, res) => {
+        app.post("/subscriptions", async (req, res) => {
             const subscription = req.body;
             const result = await subscriptionCollection.insertOne(subscription);
             res.send(result);
         });
 
         // ✅ Update subscription status by ID
-        app.patch("/subscriptions/:id", verifyToken, async (req, res) => {
+        app.patch("/subscriptions/:id", async (req, res) => {
             const { id } = req.params;
             const { status } = req.body;
             const result = await subscriptionCollection.updateOne(
@@ -428,13 +430,13 @@ async function run() {
         });
 
         // ✅ Get all subscriptions
-        app.get("/subscriptions", verifyToken, verifyAdmin, async (req, res) => {
+        app.get("/subscriptions", async (req, res) => {
             const result = await subscriptionCollection.find().toArray();
             res.send(result);
         });
 
         // ✅ Get subscriptions by userId
-        app.get("/subscriptions/user",verifyToken, verifyAdmin, async (req, res) => {
+        app.get("/subscriptions/user", async (req, res) => {
             const id = req.query.id;
             const query = { userId: id };
             const result = await subscriptionCollection.find(query).toArray();
@@ -442,7 +444,7 @@ async function run() {
         });
 
         // ✅ Update subscription to "renewed" if pending (example)
-        app.patch("/subscriptions/renew/:id", verifyToken, async (req, res) => {
+        app.patch("/subscriptions/renew/:id", async (req, res) => {
             const id = req.params.id;
             const result = await subscriptionCollection.updateOne(
                 { _id: new ObjectId(id), status: "active" },
@@ -452,7 +454,7 @@ async function run() {
         });
 
         // ✅ Delete subscription by ID
-        app.delete("/subscriptions/:id", verifyToken, verifyAdmin, async (req, res) => {
+        app.delete("/subscriptions/:id", async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await subscriptionCollection.deleteOne(query);
@@ -461,7 +463,7 @@ async function run() {
 
 
         // Shop related api
-        app.post('/products', verifyToken, async (req, res) => {
+        app.post('/products', async (req, res) => {
             const booked = req.body
             const result = await productCollection.insertOne(booked)
             res.send(result)
@@ -472,14 +474,14 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/product', verifyToken, async (req, res) => {
+        app.get('/product', async (req, res) => {
             const email = req.query.email
             const query = { email: email }
             const result = await productCollection.find(query).toArray()
             res.send(result)
         })
 
-        app.patch('/products/:id', verifyToken, async (req, res) => {
+        app.patch('/products/:id', async (req, res) => {
             const id = req.params.id
             const result = await productCollection.updateOne(
                 { _id: new ObjectId(id), status: 'pending' },
@@ -488,7 +490,7 @@ async function run() {
             res.send(result)
         })
 
-        app.delete('/products/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.delete('/products/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
             const result = await productCollection.deleteOne(query)
@@ -498,20 +500,20 @@ async function run() {
 
 
         // Cart 
-        app.post('/cart', verifyToken, async (req, res) => {
+        app.post('/cart', async (req, res) => {
             const cart = req.body
             const result = await cartCollection.insertOne(cart)
             res.send(result)
         })
 
-        app.get('/cart', verifyToken, async (req, res) => {
+        app.get('/cart', async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
             const result = await cartCollection.find(query).toArray();
             res.send(result);
         });
 
-        app.delete('/cart/:id', verifyToken, async (req, res) => {
+        app.delete('/cart/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
             const result = await cartCollection.deleteOne(query)
@@ -519,13 +521,13 @@ async function run() {
         })
 
         // orders
-        app.post('/orders', verifyToken, async (req, res) => {
+        app.post('/orders', async (req, res) => {
             const booked = req.body
             const result = await orderCollection.insertOne(booked)
             res.send(result)
         })
 
-        app.get('/order', verifyToken, async (req, res) => {
+        app.get('/order', async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
             const result = await orderCollection.find(query).toArray();
@@ -533,12 +535,12 @@ async function run() {
             res.send(result);
         });
 
-        app.get('/orders',verifyToken,verifyAdmin, async (req, res) => {
+        app.get('/orders', async (req, res) => {
             const result = await orderCollection.find().toArray()
             res.send(result)
         })
 
-        app.patch('/orders/:id', verifyToken, async (req, res) => {
+        app.patch('/orders/:id', async (req, res) => {
             const { id } = req.params;
             const { status } = req.body;
             const result = await orderCollection.updateOne(
@@ -549,25 +551,25 @@ async function run() {
         });
 
         // journal related apis 
-        app.post('/journals', verifyToken, async (req, res) => {
+        app.post('/journals', async (req, res) => {
             const journal = req.body
             const result = await journalCollection.insertOne(journal)
             res.send(result)
         })
 
-        app.get('/journals',  async (req, res) => {
+        app.get('/journals', async (req, res) => {
             const result = await journalCollection.find().toArray()
             res.send(result)
         })
 
-        app.get('/journal', verifyToken, async (req, res) => {
+        app.get('/journal', async (req, res) => {
             const email = req.query.email
             const query = { email: email }
             const result = await journalCollection.find(query).toArray()
             res.send(result)
         })
 
-        app.patch('/journals/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.patch('/journals/:id', async (req, res) => {
             const id = req.params.id
             const result = await journalCollection.updateOne(
                 { _id: new ObjectId(id), status: 'pending' },
@@ -576,7 +578,7 @@ async function run() {
             res.send(result)
         })
 
-        app.delete('/journals/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.delete('/journals/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
             const result = await journalCollection.deleteOne(query)
@@ -584,7 +586,7 @@ async function run() {
         })
 
         // blog related apis 
-        app.post('/blogs', verifyToken, async (req, res) => {
+        app.post('/blogs', async (req, res) => {
             const blog = req.body
             const result = await blogCollection.insertOne(blog)
             res.send(result)

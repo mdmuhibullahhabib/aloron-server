@@ -584,7 +584,7 @@ async function run() {
         })
 
         // blog related apis 
-        app.post('/blogs', verifyToken, async (req, res) => {
+        app.post('/blogs', async (req, res) => {
             const blog = req.body
             const result = await blogCollection.insertOne(blog)
             res.send(result)

@@ -576,7 +576,7 @@ async function run() {
             res.send(result)
         })
 
-        app.delete('/journals/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.delete('/journals/:id', verifyToken. async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
             const result = await journalCollection.deleteOne(query)
@@ -584,7 +584,7 @@ async function run() {
         })
 
         // blog related apis 
-        app.post('/blogs', verifyToken, async (req, res) => {
+        app.post('/blogs', async (req, res) => {
             const blog = req.body
             const result = await blogCollection.insertOne(blog)
             res.send(result)

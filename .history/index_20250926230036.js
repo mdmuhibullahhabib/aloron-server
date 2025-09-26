@@ -533,12 +533,12 @@ async function run() {
             res.send(result);
         });
 
-        app.get('/orders',verifyToken,verifyAdmin, async (req, res) => {
+        app.get('/orders',verifyToken,verify async (req, res) => {
             const result = await orderCollection.find().toArray()
             res.send(result)
         })
 
-        app.patch('/orders/:id', verifyToken, async (req, res) => {
+        app.patch('/orders/:id', async (req, res) => {
             const { id } = req.params;
             const { status } = req.body;
             const result = await orderCollection.updateOne(
@@ -549,25 +549,25 @@ async function run() {
         });
 
         // journal related apis 
-        app.post('/journals', verifyToken, async (req, res) => {
+        app.post('/journals', async (req, res) => {
             const journal = req.body
             const result = await journalCollection.insertOne(journal)
             res.send(result)
         })
 
-        app.get('/journals',  async (req, res) => {
+        app.get('/journals', async (req, res) => {
             const result = await journalCollection.find().toArray()
             res.send(result)
         })
 
-        app.get('/journal', verifyToken, async (req, res) => {
+        app.get('/journal', async (req, res) => {
             const email = req.query.email
             const query = { email: email }
             const result = await journalCollection.find(query).toArray()
             res.send(result)
         })
 
-        app.patch('/journals/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.patch('/journals/:id', async (req, res) => {
             const id = req.params.id
             const result = await journalCollection.updateOne(
                 { _id: new ObjectId(id), status: 'pending' },
@@ -576,7 +576,7 @@ async function run() {
             res.send(result)
         })
 
-        app.delete('/journals/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.delete('/journals/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
             const result = await journalCollection.deleteOne(query)
@@ -584,7 +584,7 @@ async function run() {
         })
 
         // blog related apis 
-        app.post('/blogs', verifyToken, async (req, res) => {
+        app.post('/blogs', async (req, res) => {
             const blog = req.body
             const result = await blogCollection.insertOne(blog)
             res.send(result)
