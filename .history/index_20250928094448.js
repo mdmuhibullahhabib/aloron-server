@@ -138,17 +138,11 @@ async function run() {
 
             // If subscription, also create a pending subscription entry
             if (payment.category === "subscription") {
-                const query = { email: payment.email }
-                const existingUser = await userCollection.findOne(query)
-                if (existingUser) {
-                    return res.send({ message: 'user already exists', insertedId: null })
-                }
+                const uid = payment.userId;
+                const existing = await subscriptionCollection.findOne({ userId: uid });
+                console.log('[/create-ssl-payment] existing subscription:', existing);
 
-                //                 const uid = payment.userId;
-                //   const existing = await subscriptionCollection.findOne({ userId: uid });
-                //   console.log('[/create-ssl-payment] existing subscription:', existing);
-
-                if (!existingUser) {
+                if (!existing) {
                     await subscriptionCollection.insertOne({
                         userId: payment.userId,
                         userEmail: payment.email,

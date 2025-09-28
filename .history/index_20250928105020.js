@@ -148,7 +148,7 @@ async function run() {
                 //   const existing = await subscriptionCollection.findOne({ userId: uid });
                 //   console.log('[/create-ssl-payment] existing subscription:', existing);
 
-                if (!existingUser) {
+                if (!existing) {
                     await subscriptionCollection.insertOne({
                         userId: payment.userId,
                         userEmail: payment.email,

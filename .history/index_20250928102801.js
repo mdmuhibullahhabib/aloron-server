@@ -137,18 +137,48 @@ async function run() {
             const saveData = await paymentCollection.insertOne(payment);
 
             // If subscription, also create a pending subscription entry
+            // if (payment.category === "subscription") {
+            //     const uid = payment.userId;
+            //     const existing = await subscriptionCollection.findOne({ userId: uid });
+            //     console.log('[/create-ssl-payment] existing subscription:', existing);
+
+            //     if (!existing) {
+            //         await subscriptionCollection.insertOne({
+            //             userId: payment.userId,
+            //             userEmail: payment.email,
+            //             planId: payment.referenceId,
+            //             transactionId: trxid,
+            //             price: payment.price,
+            //             status: "pending",
+            //             startDate: null, // not started yet
+            //             endDate: null,
+            //             examCredit: payment.examCredit || 1,
+            //             createdAt: new Date(),
+            //             updatedAt: new Date(),
+            //         });
+            //     }
+            // }
+
+            //  Only if subscription
             if (payment.category === "subscription") {
-                const query = { email: payment.email }
-                const existingUser = await userCollection.findOne(query)
-                if (existingUser) {
-                    return res.send({ message: 'user already exists', insertedId: null })
-                }
+                const existingSub = await subscriptionCollection.findOne({ userId: payment.userId });
 
-                //                 const uid = payment.userId;
-                //   const existing = await subscriptionCollection.findOne({ userId: uid });
-                //   console.log('[/create-ssl-payment] existing subscription:', existing);
-
-                if (!existingUser) {
+                if (existingSub) {
+                    // update instead of insert
+                    await subscriptionCollection.updateOne(
+                        { _id: existingSub._id },
+                        {
+                            $set: {
+                                planId: payment.referenceId,
+                                transactionId: trxid,
+                                price: payment.price,
+                                status: "success",   // ✅ mark success directly
+                                updatedAt: new Date(),
+                            },
+                        }
+                    );
+                } else {
+                    // create new subscription
                     await subscriptionCollection.insertOne({
                         userId: payment.userId,
                         userEmail: payment.email,
@@ -156,7 +186,7 @@ async function run() {
                         transactionId: trxid,
                         price: payment.price,
                         status: "pending",
-                        startDate: null, // not started yet
+                        startDate: null,
                         endDate: null,
                         examCredit: payment.examCredit || 1,
                         createdAt: new Date(),

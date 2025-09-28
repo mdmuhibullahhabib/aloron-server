@@ -88,7 +88,7 @@ async function run() {
             const payment = req.body;
             console.log("payment", payment)
 
-            payment.userId = String(payment.userId);
+    payment.userId = String(payment.userId);
 
             const trxid = new ObjectId().toString();
             payment.transactionId = trxid;
@@ -137,33 +137,29 @@ async function run() {
             const saveData = await paymentCollection.insertOne(payment);
 
             // If subscription, also create a pending subscription entry
-            if (payment.category === "subscription") {
-                const query = { email: payment.email }
-                const existingUser = await userCollection.findOne(query)
-                if (existingUser) {
-                    return res.send({ message: 'user already exists', insertedId: null })
-                }
+            // if (payment.category === "subscription") {
+            //     const uid = payment.userId;
+            //     const existing = await subscriptionCollection.findOne({ userId: uid });
+            //     console.log('[/create-ssl-payment] existing subscription:', existing);
 
-                //                 const uid = payment.userId;
-                //   const existing = await subscriptionCollection.findOne({ userId: uid });
-                //   console.log('[/create-ssl-payment] existing subscription:', existing);
+            //     if (!existing) {
+            //         await subscriptionCollection.insertOne({
+            //             userId: payment.userId,
+            //             userEmail: payment.email,
+            //             planId: payment.referenceId,
+            //             transactionId: trxid,
+            //             price: payment.price,
+            //             status: "pending",
+            //             startDate: null, // not started yet
+            //             endDate: null,
+            //             examCredit: payment.examCredit || 1,
+            //             createdAt: new Date(),
+            //             updatedAt: new Date(),
+            //         });
+            //     }
+            // }
 
-                if (!existingUser) {
-                    await subscriptionCollection.insertOne({
-                        userId: payment.userId,
-                        userEmail: payment.email,
-                        planId: payment.referenceId,
-                        transactionId: trxid,
-                        price: payment.price,
-                        status: "pending",
-                        startDate: null, // not started yet
-                        endDate: null,
-                        examCredit: payment.examCredit || 1,
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
-                    });
-                }
-            }
+            
 
             if (payment.category === "course") {
                 // Mark enrollment as pending

@@ -137,18 +137,47 @@ async function run() {
             const saveData = await paymentCollection.insertOne(payment);
 
             // If subscription, also create a pending subscription entry
+            // if (payment.category === "subscription") {
+            //     const uid = payment.userId;
+            //     const existing = await subscriptionCollection.findOne({ userId: uid });
+            //     console.log('[/create-ssl-payment] existing subscription:', existing);
+
+            //     if (!existing) {
+            //         await subscriptionCollection.insertOne({
+            //             userId: payment.userId,
+            //             userEmail: payment.email,
+            //             planId: payment.referenceId,
+            //             transactionId: trxid,
+            //             price: payment.price,
+            //             status: "pending",
+            //             startDate: null, // not started yet
+            //             endDate: null,
+            //             examCredit: payment.examCredit || 1,
+            //             createdAt: new Date(),
+            //             updatedAt: new Date(),
+            //         });
+            //     }
+            // }
+
             if (payment.category === "subscription") {
-                const query = { email: payment.email }
-                const existingUser = await userCollection.findOne(query)
-                if (existingUser) {
-                    return res.send({ message: 'user already exists', insertedId: null })
-                }
+                const existingSub = await subscriptionCollection.findOne({ userId: payment.userId });
 
-                //                 const uid = payment.userId;
-                //   const existing = await subscriptionCollection.findOne({ userId: uid });
-                //   console.log('[/create-ssl-payment] existing subscription:', existing);
-
-                if (!existingUser) {
+                if (existingSub) {
+                    // ⚡ শুধু update করবো কিন্তু success না, pending রাখবো
+                    await subscriptionCollection.updateOne(
+                        { _id: existingSub._id },
+                        {
+                            $set: {
+                                planId: payment.referenceId,
+                                transactionId: trxid,
+                                price: payment.price,
+                                status: "pending",   // ✅ সবসময় pending create এ
+                                updatedAt: new Date(),
+                            },
+                        }
+                    );
+                } else {
+                    // insert new
                     await subscriptionCollection.insertOne({
                         userId: payment.userId,
                         userEmail: payment.email,
@@ -156,7 +185,7 @@ async function run() {
                         transactionId: trxid,
                         price: payment.price,
                         status: "pending",
-                        startDate: null, // not started yet
+                        startDate: null,
                         endDate: null,
                         examCredit: payment.examCredit || 1,
                         createdAt: new Date(),
@@ -164,6 +193,7 @@ async function run() {
                     });
                 }
             }
+
 
             if (payment.category === "course") {
                 // Mark enrollment as pending
@@ -227,20 +257,49 @@ async function run() {
             console.log('payment', payment)
 
             // Handle subscription
+            // if (payment.category === "subscription") {
+            //     const updateSubscription = await subscriptionCollection.updateOne(
+            //         { transactionId: data.tran_id },
+            //         {
+            //             $set: {
+            //                 status: "active",
+            //                 updatedAt: new Date(),
+            //                 startDate: new Date(),
+            //                 endDate: addMonths(new Date(), 1),
+            //             },
+            //         }
+            //     );
+            //     console.log(updateSubscription)
+            // }
+
             if (payment.category === "subscription") {
-                const updateSubscription = await subscriptionCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "active",
-                            updatedAt: new Date(),
-                            startDate: new Date(),
-                            endDate: addMonths(new Date(), 1),
-                        },
+                const existingSub = await subscriptionCollection.findOne({
+                    userId: payment.userId,
+                    transactionId: data.tran_id   // ⚡ transactionId মেলাতে হবে
+                });
+
+                if (existingSub) {
+                    if (existingSub.status !== "active") {
+                        await subscriptionCollection.updateOne(
+                            { _id: existingSub._id },
+                            {
+                                $set: {
+                                    status: "active",
+                                    startDate: new Date(),
+                                    endDate: addMonths(new Date(), 1),
+                                    updatedAt: new Date(),
+                                },
+                            }
+                        );
+                        console.log("✅ Subscription activated");
+                    } else {
+                        console.log("⚡ Subscription already active, skipping update");
                     }
-                );
-                console.log(updateSubscription)
+                } else {
+                    console.log("❌ Subscription not found for tran_id:", data.tran_id);
+                }
             }
+
 
             // handle course
             if (payment.category === "course") {

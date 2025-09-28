@@ -84,11 +84,9 @@ async function run() {
         }
 
         // payment related apis
-        app.post('/create-ssl-payment', async (req, res) => {
+        app.post('/create-ssl-payment', verifyToken, async (req, res) => {
             const payment = req.body;
             console.log("payment", payment)
-
-            payment.userId = String(payment.userId);
 
             const trxid = new ObjectId().toString();
             payment.transactionId = trxid;
@@ -138,31 +136,22 @@ async function run() {
 
             // If subscription, also create a pending subscription entry
             if (payment.category === "subscription") {
-                const query = { email: payment.email }
-                const existingUser = await userCollection.findOne(query)
-                if (existingUser) {
-                    return res.send({ message: 'user already exists', insertedId: null })
-                }
-
-                //                 const uid = payment.userId;
-                //   const existing = await subscriptionCollection.findOne({ userId: uid });
-                //   console.log('[/create-ssl-payment] existing subscription:', existing);
-
-                if (!existingUser) {
-                    await subscriptionCollection.insertOne({
-                        userId: payment.userId,
-                        userEmail: payment.email,
-                        planId: payment.referenceId,
-                        transactionId: trxid,
-                        price: payment.price,
-                        status: "pending",
-                        startDate: null, // not started yet
-                        endDate: null,
-                        examCredit: payment.examCredit || 1,
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
-                    });
-                }
+                    const existingSubscription = await subscriptionCollection.findOne({
+        userId: payment.userId
+    });
+                await subscriptionCollection.insertOne({
+                    userId: payment.userId,
+                    userEmail: payment.email,
+                    planId: payment.referenceId,
+                    transactionId: trxid,
+                    price: payment.price,
+                    status: "pending",
+                    startDate: null, // not started yet
+                    endDate: null,
+                    examCredit: payment.examCredit || 1,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                });
             }
 
             if (payment.category === "course") {
@@ -196,7 +185,7 @@ async function run() {
             res.send({ gatewayUrl });
         });
 
-        app.post("/success-payment", async (req, res) => {
+        app.post("/success-payment", verifyToken, async (req, res) => {
             //step-5 : success payment data
             const paymentSuccess = req.body;
             console.log(paymentSuccess)
@@ -300,7 +289,7 @@ async function run() {
         });
 
         // user related apis
-        app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
+        app.get('/users',verifyToken, verifyAdmin,  async (req, res) => {
             const result = await userCollection.find().toArray()
             res.send(result)
         })
@@ -379,7 +368,7 @@ async function run() {
         })
 
         // course related api
-        app.post('/courses', verifyToken, async (req, res) => {
+        app.post('/courses',verifyToken, async (req, res) => {
             const booked = req.body
             const result = await courseCollection.insertOne(booked)
             res.send(result)
@@ -400,7 +389,7 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/course', verifyToken, async (req, res) => {
+        app.get('/course',verifyToken, async (req, res) => {
             const email = req.query.email
             const query = { email: email }
             const result = await courseCollection.find(query).toArray()
@@ -448,7 +437,7 @@ async function run() {
         });
 
         // ✅ Get subscriptions by userId
-        app.get("/subscriptions/user", verifyToken, verifyAdmin, async (req, res) => {
+        app.get("/subscriptions/user",verifyToken, verifyAdmin, async (req, res) => {
             const id = req.query.id;
             const query = { userId: id };
             const result = await subscriptionCollection.find(query).toArray();
@@ -547,7 +536,7 @@ async function run() {
             res.send(result);
         });
 
-        app.get('/orders', verifyToken, verifyAdmin, async (req, res) => {
+        app.get('/orders',verifyToken,verifyAdmin, async (req, res) => {
             const result = await orderCollection.find().toArray()
             res.send(result)
         })
@@ -569,7 +558,7 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/journals', async (req, res) => {
+        app.get('/journals',  async (req, res) => {
             const result = await journalCollection.find().toArray()
             res.send(result)
         })

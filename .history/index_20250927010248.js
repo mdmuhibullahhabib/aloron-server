@@ -84,208 +84,214 @@ async function run() {
         }
 
         // payment related apis
+        // create-ssl-payment
         app.post('/create-ssl-payment', async (req, res) => {
-            const payment = req.body;
-            console.log("payment", payment)
+            try {
+                const payment = req.body;
 
-            payment.userId = String(payment.userId);
+                    if (payment.userId) payment.userId = String(payment.userId);
+                console.log("payment", payment);
 
-            const trxid = new ObjectId().toString();
-            payment.transactionId = trxid;
+                // create unique transaction id
+                const trxid = new ObjectId().toString();
+                payment.transactionId = trxid;
 
-            //step 1: initialize the data
-            const initiate = {
-                store_id: `${process.env.PAYMENT_ID}`,
-                store_passwd: `${process.env.PAYMENT_PASS}`,
-                total_amount: payment.price,
-                currency: "BDT",
-                tran_id: trxid,
-                success_url: "http://localhost:5000/success-payment",
-                fail_url: "http://localhost:5173/fail",
-                cancel_url: "http://localhost:5173/cancle",
-                ipn_url: "http://localhost:5000/ipn-success-payment",
-                cus_name: "Customer Name",
-                cus_email: `${payment.email}`,
-                cus_add1: "Dhaka&",
-                cus_add2: "Dhaka&",
-                cus_city: "Dhaka&",
-                cus_state: "Dhaka&",
-                cus_postcode: 1000,
-                cus_country: "Bangladesh",
-                cus_phone: "01711111111",
-                cus_fax: "01711111111",
-                shipping_method: "NO",
-                product_name: "Laptop",
-                product_category: "Laptop",
-                product_profile: "general",
-                multi_card_name: "mastercard,visacard,amexcard",
-                value_a: "ref001_A&",
-                value_b: "ref002_B&",
-                value_c: "ref003_C&",
-                value_d: "ref004_D",
-            };
+                const initiate = {
+                    store_id: process.env.PAYMENT_ID,
+                    store_passwd: process.env.PAYMENT_PASS,
+                    total_amount: payment.price,
+                    currency: "BDT",
+                    tran_id: trxid,
+                    success_url: "http://localhost:5000/success-payment",
+                    fail_url: "http://localhost:5173/fail",
+                    cancel_url: "http://localhost:5173/cancle",
+                    ipn_url: "http://localhost:5000/ipn-success-payment",
+                    cus_name: "Customer Name",
+                    cus_email: payment.email,
+                    cus_add1: "Dhaka",
+                    cus_city: "Dhaka",
+                    cus_country: "Bangladesh",
+                    cus_postcode: 1000,
+                    cus_phone: "01711111111",
+                    shipping_method: "NO",
+                    product_name: payment.category || "product",
+                    product_category: payment.category || "general",
+                    product_profile: "general"
+                };
 
-            //step 2: send the request to sslcommerz payment gateway
-            const iniResponse = await axios({
-                url: "https://sandbox.sslcommerz.com/gwprocess/v4/api.php",
-                method: "POST",
-                data: initiate,
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-            });
-            const saveData = await paymentCollection.insertOne(payment);
+                // ✅ IMPORTANT: serialize as x-www-form-urlencoded
+                const params = new URLSearchParams();
+                Object.entries(initiate).forEach(([k, v]) => {
+                    if (v !== undefined && v !== null) params.append(k, String(v));
+                });
 
-            // If subscription, also create a pending subscription entry
-            if (payment.category === "subscription") {
-                const query = { email: payment.email }
-                const existingUser = await userCollection.findOne(query)
-                if (existingUser) {
-                    return res.send({ message: 'user already exists', insertedId: null })
+                const iniResponse = await axios.post(
+                    "https://sandbox.sslcommerz.com/gwprocess/v4/api.php",
+                    params.toString(),
+                    { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+                );
+
+                // save payment record (pending)
+                await paymentCollection.insertOne(payment);
+
+                if (payment.category === "subscription") {
+                        const uidStr = String(payment.userId || "");
+      const existingSubscription = await subscriptionCollection.findOne({ userId: uidStr });
+
+      if (!existingSubscription) {
+                        await subscriptionCollection.insertOne({
+                            userId: payment.userId,
+                            userEmail: payment.email,
+                            planId: payment.referenceId,
+                            transactionId: trxid,
+                            price: payment.price,
+                            status: "pending",
+                            startDate: null,
+                            endDate: null,
+                            examCredit: payment.examCredit || 1,
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
+                        });
+                    }
                 }
 
-                //                 const uid = payment.userId;
-                //   const existing = await subscriptionCollection.findOne({ userId: uid });
-                //   console.log('[/create-ssl-payment] existing subscription:', existing);
-
-                if (!existingUser) {
-                    await subscriptionCollection.insertOne({
+                // Course -> enrollment pending
+                if (payment.category === "course") {
+                    await enrollmentCollection.insertOne({
                         userId: payment.userId,
-                        userEmail: payment.email,
-                        planId: payment.referenceId,
-                        transactionId: trxid,
+                        email: payment.email,
                         price: payment.price,
+                        courseId: payment.referenceId,
+                        transactionId: trxid,
                         status: "pending",
-                        startDate: null, // not started yet
-                        endDate: null,
-                        examCredit: payment.examCredit || 1,
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
+                        enrolledAt: null,
                     });
                 }
+
+                // Shop -> order pending
+                if (payment.category === "shop") {
+                    await orderCollection.insertOne({
+                        userId: payment.userId,
+                        email: payment.email,
+                        cartIds: payment.cartIds,
+                        items: payment.menuItemIds,
+                        transactionId: trxid,
+                        total: payment.price,
+                        status: "pending",
+                        createdAt: new Date(),
+                    });
+                }
+
+                // pick gateway URL safely (SSLCommerz property name)
+                const gatewayUrl =
+                    iniResponse?.data?.GatewayPageURL ||
+                    iniResponse?.data?.GatewayPageUrl ||
+                    iniResponse?.data?.gatewayUrl;
+
+                if (!gatewayUrl) {
+                    console.error("Gateway URL not returned from SSLCommerz:", iniResponse?.data);
+                    return res.status(500).send({ error: "Payment gateway error" });
+                }
+
+                return res.send({ gatewayUrl });
+            } catch (err) {
+                console.error("❌ create-ssl-payment error:", err?.message || err);
+                return res.status(500).send({ error: "Payment initiation failed" });
             }
-
-            if (payment.category === "course") {
-                // Mark enrollment as pending
-                await enrollmentCollection.insertOne({
-                    userId: payment.userId,
-                    email: payment.email,
-                    price: payment.price,
-                    courseId: payment.referenceId,
-                    transactionId: trxid,
-                    status: "pending",
-                    enrolledAt: null,
-                });
-            }
-
-            // if (payment.category === "shop") {
-            //     // Save cart order as pending
-            //     await orderCollection.insertOne({
-            //         userId: payment.userId,
-            //         email: payment.email,
-            //         cartIds: payment.cartIds,
-            //         items: payment.menuItemIds,
-            //         transactionId: trxid,
-            //         total: payment.price,
-            //         status: "pending",
-            //         createdAt: new Date(),
-            //     });
-            // }
-
-            const gatewayUrl = iniResponse?.data?.GatewayPageURL;
-            res.send({ gatewayUrl });
         });
 
+
+        // success-payment (SSLCommerz redirect/validation)
         app.post("/success-payment", async (req, res) => {
-            //step-5 : success payment data
-            const paymentSuccess = req.body;
-            console.log(paymentSuccess)
-
-            //step-6: Validation
-            const { data } = await axios.get(
-                `https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${paymentSuccess.val_id}&store_id=${process.env.PAYMENT_ID}&store_passwd=${process.env.PAYMENT_PASS}&format=json`
-            );
-            if (data.status !== "VALID") {
-                return res.send({ message: "Invalid payment" });
-            }
-
-            //step-7: update the payment to your database
-            const updatePayment = await paymentCollection.updateOne(
-                { transactionId: data.tran_id },
-                {
-                    $set: {
-                        status: "success",
-                    },
+            try {
+                // val_id can come as query param (redirect) or in POST body
+                const valId = req.body?.val_id || req.query?.val_id;
+                if (!valId) {
+                    console.error("val_id not provided in success callback", { body: req.body, query: req.query });
+                    return res.status(400).send({ error: "Missing val_id" });
                 }
-            );
 
-            //step-8: find the payment for more functionality
-            const payment = await paymentCollection.findOne({
-                transactionId: data.tran_id,
-            });
+                // validate with SSLCommerz validator
+                const validateUrl = `https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${encodeURIComponent(
+                    valId
+                )}&store_id=${process.env.PAYMENT_ID}&store_passwd=${process.env.PAYMENT_PASS}&format=json`;
 
-            console.log('payment', payment)
+                const { data } = await axios.get(validateUrl);
 
-            // Handle subscription
-            if (payment.category === "subscription") {
-                const updateSubscription = await subscriptionCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "active",
-                            updatedAt: new Date(),
-                            startDate: new Date(),
-                            endDate: addMonths(new Date(), 1),
-                        },
-                    }
-                );
-                console.log(updateSubscription)
-            }
-
-            // handle course
-            if (payment.category === "course") {
-                await enrollmentCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "active",
-                            enrolledAt: new Date(),
-                        },
-                    }
-                );
-            }
-
-            // Handle Shop Payment
-            if (payment.category === "shop") {
-                // 1️⃣ Update order status
-                const updateOrder = await orderCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "completed",
-                            updatedAt: new Date(),
-                        },
-                    }
-                );
-
-                // Remove items from cart
-                if (payment.cartIds && payment.cartIds.length > 0) {
-                    const query = {
-                        _id: {
-                            $in: payment.cartIds.map((id) => new ObjectId(id)),
-                        },
-                    };
-                    const deleteResult = await cartCollection.deleteMany(query);
-                    console.log("🛒 Cart cleared:", deleteResult.deletedCount, "items removed");
+                if (!data || data.status !== "VALID") {
+                    console.warn("Payment validation failed:", data);
+                    return res.status(400).send({ message: "Invalid payment" });
                 }
+
+                // update payment status in DB
+                await paymentCollection.updateOne(
+                    { transactionId: data.tran_id },
+                    { $set: { status: "success", validatedAt: new Date() } }
+                );
+
+                // fetch the payment record to know category and details
+                const payment = await paymentCollection.findOne({ transactionId: data.tran_id });
+                if (!payment) {
+                    console.error("Payment record not found for tran_id:", data.tran_id);
+                    return res.status(404).send({ error: "Payment record not found" });
+                }
+
+                // helper to add months
+                const addMonths = (date, months) => {
+                    const d = new Date(date);
+                    d.setMonth(d.getMonth() + months);
+                    return d;
+                };
+
+                // subscription -> activate the subscription doc with same transactionId
+                if (payment.category === "subscription") {
+                    await subscriptionCollection.updateOne(
+                        { transactionId: data.tran_id },
+                        {
+                            $set: {
+                                status: "active",
+                                updatedAt: new Date(),
+                                startDate: new Date(),
+                                endDate: addMonths(new Date(), 1),
+                            },
+                        }
+                    );
+                }
+
+                // course -> activate enrollment
+                if (payment.category === "course") {
+                    await enrollmentCollection.updateOne(
+                        { transactionId: data.tran_id },
+                        {
+                            $set: {
+                                status: "active",
+                                enrolledAt: new Date(),
+                            },
+                        }
+                    );
+                }
+
+                // shop -> complete order and clear cart items
+                if (payment.category === "shop") {
+                    await orderCollection.updateOne(
+                        { transactionId: data.tran_id },
+                        { $set: { status: "completed", updatedAt: new Date() } }
+                    );
+
+                    if (Array.isArray(payment.cartIds) && payment.cartIds.length > 0) {
+                        const objectIds = payment.cartIds.map((id) => (ObjectId.isValid(id) ? new ObjectId(id) : id));
+                        await cartCollection.deleteMany({ _id: { $in: objectIds } });
+                    }
+                }
+
+                // finally redirect the user to frontend success page
+                return res.redirect("http://localhost:5173/success");
+            } catch (err) {
+                console.error("❌ success-payment handler error:", err?.message || err);
+                return res.status(500).send({ error: "Payment success handling failed" });
             }
-
-            //step-9: redirect the customer to success page
-            res.redirect("http://localhost:5173/success");
-            // console.log(updatePayment, "updatePayment");
-            // console.log("isValidPayment", data);
-
         });
+
 
         app.get('/payments', verifyToken, verifyAdmin, async (req, res) => {
             const result = await paymentCollection.find().toArray()

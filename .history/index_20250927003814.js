@@ -88,8 +88,6 @@ async function run() {
             const payment = req.body;
             console.log("payment", payment)
 
-            payment.userId = String(payment.userId);
-
             const trxid = new ObjectId().toString();
             payment.transactionId = trxid;
 
@@ -138,17 +136,19 @@ async function run() {
 
             // If subscription, also create a pending subscription entry
             if (payment.category === "subscription") {
-                const query = { email: payment.email }
-                const existingUser = await userCollection.findOne(query)
-                if (existingUser) {
-                    return res.send({ message: 'user already exists', insertedId: null })
+                const userId = payment.userId;
+                let userQuery;
+                if (ObjectId.isValid(userId)) {
+                    userQuery = { $or: [{ userId: userId }, { userId: new ObjectId(userId) }] };
+                } else {
+                    userQuery = { userId: userId };
                 }
 
-                //                 const uid = payment.userId;
-                //   const existing = await subscriptionCollection.findOne({ userId: uid });
-                //   console.log('[/create-ssl-payment] existing subscription:', existing);
+                const existingSubscription = await subscriptionCollection.findOne(userQuery);
 
-                if (!existingUser) {
+                if (existingSubscription) {
+                    console.log("⚠️ Subscription already exists for user:", payment.userId);
+                } else {
                     await subscriptionCollection.insertOne({
                         userId: payment.userId,
                         userEmail: payment.email,
@@ -156,7 +156,7 @@ async function run() {
                         transactionId: trxid,
                         price: payment.price,
                         status: "pending",
-                        startDate: null, // not started yet
+                        startDate: null,
                         endDate: null,
                         examCredit: payment.examCredit || 1,
                         createdAt: new Date(),

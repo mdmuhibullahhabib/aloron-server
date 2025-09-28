@@ -84,117 +84,131 @@ async function run() {
         }
 
         // payment related apis
+        // create-ssl-payment
         app.post('/create-ssl-payment', async (req, res) => {
-            const payment = req.body;
-            console.log("payment", payment)
+            try {
+                const payment = req.body;
+                console.log("payment", payment);
 
-            payment.userId = String(payment.userId);
+                // create unique transaction id
+                const trxid = new ObjectId().toString();
+                payment.transactionId = trxid;
 
-            const trxid = new ObjectId().toString();
-            payment.transactionId = trxid;
+                // prepare data for SSLCommerz (as form-urlencoded)
+                const initiate = {
+                    store_id: process.env.PAYMENT_ID,
+                    store_passwd: process.env.PAYMENT_PASS,
+                    total_amount: payment.price,
+                    currency: "BDT",
+                    tran_id: trxid,
+                    success_url: "http://localhost:5000/success-payment",
+                    fail_url: "http://localhost:5173/fail",
+                    cancel_url: "http://localhost:5173/cancle",
+                    ipn_url: "http://localhost:5000/ipn-success-payment",
+                    cus_name: "Customer Name",
+                    cus_email: payment.email,
+                    cus_add1: "Dhaka",
+                    cus_city: "Dhaka",
+                    cus_country: "Bangladesh",
+                    cus_postcode: 1000,
+                    cus_phone: "01711111111",
+                    shipping_method: "NO",
+                    product_name: payment.category || "product",
+                    product_category: payment.category || "general",
+                    product_profile: "general"
+                };
 
-            //step 1: initialize the data
-            const initiate = {
-                store_id: `${process.env.PAYMENT_ID}`,
-                store_passwd: `${process.env.PAYMENT_PASS}`,
-                total_amount: payment.price,
-                currency: "BDT",
-                tran_id: trxid,
-                success_url: "http://localhost:5000/success-payment",
-                fail_url: "http://localhost:5173/fail",
-                cancel_url: "http://localhost:5173/cancle",
-                ipn_url: "http://localhost:5000/ipn-success-payment",
-                cus_name: "Customer Name",
-                cus_email: `${payment.email}`,
-                cus_add1: "Dhaka&",
-                cus_add2: "Dhaka&",
-                cus_city: "Dhaka&",
-                cus_state: "Dhaka&",
-                cus_postcode: 1000,
-                cus_country: "Bangladesh",
-                cus_phone: "01711111111",
-                cus_fax: "01711111111",
-                shipping_method: "NO",
-                product_name: "Laptop",
-                product_category: "Laptop",
-                product_profile: "general",
-                multi_card_name: "mastercard,visacard,amexcard",
-                value_a: "ref001_A&",
-                value_b: "ref002_B&",
-                value_c: "ref003_C&",
-                value_d: "ref004_D",
-            };
+                // ✅ IMPORTANT: serialize as x-www-form-urlencoded
+                const params = new URLSearchParams();
+                Object.entries(initiate).forEach(([k, v]) => {
+                    if (v !== undefined && v !== null) params.append(k, String(v));
+                });
 
-            //step 2: send the request to sslcommerz payment gateway
-            const iniResponse = await axios({
-                url: "https://sandbox.sslcommerz.com/gwprocess/v4/api.php",
-                method: "POST",
-                data: initiate,
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-            });
-            const saveData = await paymentCollection.insertOne(payment);
+                const iniResponse = await axios.post(
+                    "https://sandbox.sslcommerz.com/gwprocess/v4/api.php",
+                    params.toString(),
+                    { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+                );
 
-            // If subscription, also create a pending subscription entry
-            if (payment.category === "subscription") {
-                const query = { email: payment.email }
-                const existingUser = await userCollection.findOne(query)
-                if (existingUser) {
-                    return res.send({ message: 'user already exists', insertedId: null })
+                // save payment record (pending)
+                await paymentCollection.insertOne(payment);
+
+                // If subscription: insert only when not already present (handle string/ObjectId)
+                if (payment.category === "subscription") {
+                    const userId = payment.userId;
+                    let userQuery;
+                    if (ObjectId.isValid(userId)) {
+                        userQuery = { $or: [{ userId: userId }, { userId: new ObjectId(userId) }] };
+                    } else {
+                        userQuery = { userId: userId };
+                    }
+
+                    const existingSubscription = await subscriptionCollection.findOne(userQuery);
+
+                    if (existingSubscription) {
+                        console.log("⚠️ Subscription already exists for user:", payment.userId);
+                    } else {
+                        await subscriptionCollection.insertOne({
+                            userId: payment.userId,
+                            userEmail: payment.email,
+                            planId: payment.referenceId,
+                            transactionId: trxid,
+                            price: payment.price,
+                            status: "pending",
+                            startDate: null,
+                            endDate: null,
+                            examCredit: payment.examCredit || 1,
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
+                        });
+                    }
                 }
 
-                //                 const uid = payment.userId;
-                //   const existing = await subscriptionCollection.findOne({ userId: uid });
-                //   console.log('[/create-ssl-payment] existing subscription:', existing);
-
-                if (!existingUser) {
-                    await subscriptionCollection.insertOne({
+                // Course -> enrollment pending
+                if (payment.category === "course") {
+                    await enrollmentCollection.insertOne({
                         userId: payment.userId,
-                        userEmail: payment.email,
-                        planId: payment.referenceId,
-                        transactionId: trxid,
+                        email: payment.email,
                         price: payment.price,
+                        courseId: payment.referenceId,
+                        transactionId: trxid,
                         status: "pending",
-                        startDate: null, // not started yet
-                        endDate: null,
-                        examCredit: payment.examCredit || 1,
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
+                        enrolledAt: null,
                     });
                 }
+
+                // Shop -> order pending
+                if (payment.category === "shop") {
+                    await orderCollection.insertOne({
+                        userId: payment.userId,
+                        email: payment.email,
+                        cartIds: payment.cartIds,
+                        items: payment.menuItemIds,
+                        transactionId: trxid,
+                        total: payment.price,
+                        status: "pending",
+                        createdAt: new Date(),
+                    });
+                }
+
+                // pick gateway URL safely (SSLCommerz property name)
+                const gatewayUrl =
+                    iniResponse?.data?.GatewayPageURL ||
+                    iniResponse?.data?.GatewayPageUrl ||
+                    iniResponse?.data?.gatewayUrl;
+
+                if (!gatewayUrl) {
+                    console.error("Gateway URL not returned from SSLCommerz:", iniResponse?.data);
+                    return res.status(500).send({ error: "Payment gateway error" });
+                }
+
+                return res.send({ gatewayUrl });
+            } catch (err) {
+                console.error("❌ create-ssl-payment error:", err?.message || err);
+                return res.status(500).send({ error: "Payment initiation failed" });
             }
-
-            if (payment.category === "course") {
-                // Mark enrollment as pending
-                await enrollmentCollection.insertOne({
-                    userId: payment.userId,
-                    email: payment.email,
-                    price: payment.price,
-                    courseId: payment.referenceId,
-                    transactionId: trxid,
-                    status: "pending",
-                    enrolledAt: null,
-                });
-            }
-
-            // if (payment.category === "shop") {
-            //     // Save cart order as pending
-            //     await orderCollection.insertOne({
-            //         userId: payment.userId,
-            //         email: payment.email,
-            //         cartIds: payment.cartIds,
-            //         items: payment.menuItemIds,
-            //         transactionId: trxid,
-            //         total: payment.price,
-            //         status: "pending",
-            //         createdAt: new Date(),
-            //     });
-            // }
-
-            const gatewayUrl = iniResponse?.data?.GatewayPageURL;
-            res.send({ gatewayUrl });
         });
+
 
         app.post("/success-payment", async (req, res) => {
             //step-5 : success payment data

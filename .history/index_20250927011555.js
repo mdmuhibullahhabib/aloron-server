@@ -88,8 +88,6 @@ async function run() {
             const payment = req.body;
             console.log("payment", payment)
 
-            payment.userId = String(payment.userId);
-
             const trxid = new ObjectId().toString();
             payment.transactionId = trxid;
 
@@ -138,17 +136,13 @@ async function run() {
 
             // If subscription, also create a pending subscription entry
             if (payment.category === "subscription") {
-                const query = { email: payment.email }
-                const existingUser = await userCollection.findOne(query)
-                if (existingUser) {
-                    return res.send({ message: 'user already exists', insertedId: null })
-                }
+                const existingSubscription = await subscriptionCollection.findOne({
+                    userEmail: payment.email
+                });
 
-                //                 const uid = payment.userId;
-                //   const existing = await subscriptionCollection.findOne({ userId: uid });
-                //   console.log('[/create-ssl-payment] existing subscription:', existing);
-
-                if (!existingUser) {
+                if (existingSubscription) {
+                    console.log("⚠️ Subscription already exists for user:", payment.userId);
+                } else {
                     await subscriptionCollection.insertOne({
                         userId: payment.userId,
                         userEmail: payment.email,

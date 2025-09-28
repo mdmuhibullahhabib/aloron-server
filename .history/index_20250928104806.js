@@ -88,8 +88,8 @@ async function run() {
             const payment = req.body;
             console.log("payment", payment)
 
-            payment.userId = String(payment.userId);
-
+    payment.userId = String(payment.userId);
+    
             const trxid = new ObjectId().toString();
             payment.transactionId = trxid;
 
@@ -138,17 +138,11 @@ async function run() {
 
             // If subscription, also create a pending subscription entry
             if (payment.category === "subscription") {
-                const query = { email: payment.email }
-                const existingUser = await userCollection.findOne(query)
-                if (existingUser) {
-                    return res.send({ message: 'user already exists', insertedId: null })
-                }
+                const uid = payment.userId;
+                const existing = await subscriptionCollection.findOne({ userId: uid });
+                console.log('[/create-ssl-payment] existing subscription:', existing);
 
-                //                 const uid = payment.userId;
-                //   const existing = await subscriptionCollection.findOne({ userId: uid });
-                //   console.log('[/create-ssl-payment] existing subscription:', existing);
-
-                if (!existingUser) {
+                if (!existing) {
                     await subscriptionCollection.insertOne({
                         userId: payment.userId,
                         userEmail: payment.email,
@@ -227,20 +221,49 @@ async function run() {
             console.log('payment', payment)
 
             // Handle subscription
+            // if (payment.category === "subscription") {
+            //     const updateSubscription = await subscriptionCollection.updateOne(
+            //         { transactionId: data.tran_id },
+            //         {
+            //             $set: {
+            //                 status: "active",
+            //                 updatedAt: new Date(),
+            //                 startDate: new Date(),
+            //                 endDate: addMonths(new Date(), 1),
+            //             },
+            //         }
+            //     );
+            //     console.log(updateSubscription)
+            // }
+
             if (payment.category === "subscription") {
-                const updateSubscription = await subscriptionCollection.updateOne(
-                    { transactionId: data.tran_id },
-                    {
-                        $set: {
-                            status: "active",
-                            updatedAt: new Date(),
-                            startDate: new Date(),
-                            endDate: addMonths(new Date(), 1),
-                        },
-                    }
-                );
-                console.log(updateSubscription)
-            }
+    const existingSub = await subscriptionCollection.findOne({
+        userId: payment.userId,
+        transactionId: data.tran_id   // ⚡ transactionId মেলাতে হবে
+    });
+
+    if (existingSub) {
+        if (existingSub.status !== "active") {
+            await subscriptionCollection.updateOne(
+                { _id: existingSub._id },
+                {
+                    $set: {
+                        status: "active",
+                        startDate: new Date(),
+                        endDate: addMonths(new Date(), 1),
+                        updatedAt: new Date(),
+                    },
+                }
+            );
+            console.log("✅ Subscription activated");
+        } else {
+            console.log("⚡ Subscription already active, skipping update");
+        }
+    } else {
+        console.log("❌ Subscription not found for tran_id:", data.tran_id);
+    }
+}
+
 
             // handle course
             if (payment.category === "course") {
