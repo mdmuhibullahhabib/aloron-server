@@ -82,18 +82,6 @@ async function run() {
             next();
         }
 
-        // subscription expire check
-        cron.schedule("0 0 * * *", async () => {
-            const now = new Date();
-                const result = await subscriptionCollection.updateMany(
-                    { status: "active", endDate: { $lt: now } },
-                    { $set: { status: "pending" } }
-                );
-                if (result.modifiedCount > 0) {
-                    console.log(`🔄 ${result.modifiedCount} subscription expired → pending`);
-                }
-        });
-
         // payment related apis
         app.post('/create-ssl-payment', async (req, res) => {
             const payment = req.body;

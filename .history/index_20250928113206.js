@@ -92,6 +92,9 @@ async function run() {
                 if (result.modifiedCount > 0) {
                     console.log(`🔄 ${result.modifiedCount} subscription expired → pending`);
                 }
+            } catch (err) {
+                console.error("❌ Subscription cron error:", err);
+            }
         });
 
         // payment related apis

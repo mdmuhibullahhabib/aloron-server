@@ -7,7 +7,7 @@ const port = process.env.PORT || 5000;
 const { ObjectId } = require('mongodb')
 const axios = require("axios");
 const { addMonths } = require("date-fns");
-const cron = require("node-cron"); 
+import cron from "node-cron";
 
 // middleware
 app.use(cors())
@@ -17,6 +17,7 @@ app.use(express.urlencoded({ extended: true }));
 const { MongoClient, ServerApiVersion } = require('mongodb')
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.w5eri.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
 
+// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
@@ -81,18 +82,6 @@ async function run() {
             }
             next();
         }
-
-        // subscription expire check
-        cron.schedule("0 0 * * *", async () => {
-            const now = new Date();
-                const result = await subscriptionCollection.updateMany(
-                    { status: "active", endDate: { $lt: now } },
-                    { $set: { status: "pending" } }
-                );
-                if (result.modifiedCount > 0) {
-                    console.log(`🔄 ${result.modifiedCount} subscription expired → pending`);
-                }
-        });
 
         // payment related apis
         app.post('/create-ssl-payment', async (req, res) => {

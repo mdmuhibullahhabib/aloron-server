@@ -92,6 +92,7 @@ async function run() {
                 if (result.modifiedCount > 0) {
                     console.log(`🔄 ${result.modifiedCount} subscription expired → pending`);
                 }
+     
         });
 
         // payment related apis
